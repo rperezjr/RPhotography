@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Game Match Photography Feed</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header>
+    <h1>Monett Highschool Soccer Gallery</h1>
+
+    <!-- Game Title Controls -->
+    <div class="game-control-panel">
+      <label for="game-title-input">Game Name:</label>
+      <div class="input-group">
+        <input type="text" id="game-title-input" placeholder="Enter Game / Match Name..." />
+        <button id="update-title-btn">Search Game</button>
+      </div>
+    </div>
+
+    <div class="status-bar">
+      <span class="status-dot"></span>
+      <span id="sync-status">Scanning for images...</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="game-section">
+      <div class="section-header">
+        <h2 id="display-game-title">Match 1: JHS Soccer Jamboree</h2>
+        <span class="game-badge" id="photo-count-badge">0 Photos</span>
+      </div>
+
+      <div class="gallery-grid" id="gallery">
+        <div class="empty-state" id="empty-state">
+          Checking folder for match photos...
+        </div>
+      </div>
+    </section>
+  </main>
+ <!-- Full-Screen Lightbox Modal -->
+  <div class="lightbox" id="lightbox">
+    <button class="lightbox-close" id="lightbox-close" aria-label="Close Lightbox">&times;</button>
+    <button class="lightbox-arrow lightbox-prev" id="lightbox-prev" aria-label="Previous Photo">&#10094;</button>
+    
+    <div class="lightbox-content">
+      <img id="lightbox-img" src="" alt="Full Screen Preview" />
+      <div class="lightbox-caption" id="lightbox-caption"></div>
+    </div>
+
+    <button class="lightbox-arrow lightbox-next" id="lightbox-next" aria-label="Next Photo">&#10095;</button>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
