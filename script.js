@@ -1,16 +1,18 @@
 /**
- * Monett Highschool Soccer Gallery - High-Speed Full Feed Script
- * Optimized with batch chunking and fast timeouts to match Live Server performance.
+ * Monett Highschool Soccer Gallery - Instant Load Engine
+ * Generates 150 shot slots programmatically with zero probe delay.
  */
 
 // --- CONFIGURATION ---
 const IMAGE_FOLDER = 'images';
 const FILE_PREFIX = '_WAC';
-const FILE_EXTENSION = 'JPG';    // Must match exact casing on GitHub (.JPG vs .jpg)
+const FILE_EXTENSION = 'JPG'; // Case-sensitive: must match GitHub casing exactly
+
 const START_NUMBER = 7332;
-const TOTAL_SLOTS_TO_CHECK = 150;
-const BATCH_SIZE = 15;           // Probes 15 images at a time to keep browser queue clear
-const PROBE_TIMEOUT_MS = 800;    // 800ms fast timeout to drop missing photo slots instantly
+const TOTAL_PHOTOS = 150;
+
+// Programmatically generate array: [7332, 7333, ..., 7481]
+const SHOT_NUMBERS = Array.from({ length: TOTAL_PHOTOS }, (_, i) => START_NUMBER + i);
 
 // --- DOM REFERENCES ---
 const gallery = document.getElementById('gallery');
@@ -74,18 +76,22 @@ if (searchClearBtn) {
 }
 
 // ==========================================
-// 2. CARD DOM CREATION
+// 2. CARD DOM CREATION (LAZY LOAD OPTIMIZED)
 // ==========================================
 function createPhotoCard(filename, fullUrl, photoNum, isTopRow) {
   const card = document.createElement('div');
   card.className = 'photo-card';
   card.dataset.filename = filename;
 
+  // Eager load only top 4 images; lazy load everything else offscreen
   const loadingAttr = isTopRow ? 'eager' : 'lazy';
 
   card.innerHTML = `
     <div class="image-wrapper">
-      <img src="${fullUrl}" loading="${loadingAttr}" decoding="async" alt="Shot ${photoNum}" />
+      <img src="${fullUrl}" 
+           loading="${loadingAttr}" 
+           decoding="async" 
+           alt="Shot ${photoNum}" />
     </div>
     <div class="card-info">
       <div class="card-top-row">
@@ -94,7 +100,7 @@ function createPhotoCard(filename, fullUrl, photoNum, isTopRow) {
     </div>
   `;
 
-  // Fail-Safe: Cleanly remove card if network fails mid-load
+  // Clean fail-safe: remove card if slot photo wasn't uploaded
   const imgTag = card.querySelector('img');
   imgTag.onerror = () => {
     card.remove();
@@ -113,83 +119,39 @@ function createPhotoCard(filename, fullUrl, photoNum, isTopRow) {
 }
 
 // ==========================================
-// 3. FAST PROBE ENGINE
+// 3. INSTANT DOM STREAMING BUILDER
 // ==========================================
-function probeUrl(fullUrl) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    let timer = setTimeout(() => {
-      img.src = ""; // Abort request on timeout
-      resolve(false);
-    }, PROBE_TIMEOUT_MS);
-
-    img.onload = () => {
-      clearTimeout(timer);
-      resolve(true);
-    };
-    img.onerror = () => {
-      clearTimeout(timer);
-      resolve(false);
-    };
-    img.src = fullUrl;
-  });
-}
-
-async function probeSlot(photoNum) {
-  const filename = `${FILE_PREFIX}${photoNum}.${FILE_EXTENSION}`;
-  const fullUrl = `${IMAGE_FOLDER}/${filename}`;
-  const exists = await probeUrl(fullUrl);
-  return { exists, filename, fullUrl, photoNum };
-}
-
-// ==========================================
-// 4. CHUNKED STREAMING GALLERY LOADER
-// ==========================================
-async function loadPhotos() {
-  if (syncStatus) syncStatus.textContent = "Loading photos...";
-
-  for (let i = 0; i < TOTAL_SLOTS_TO_CHECK; i += BATCH_SIZE) {
-    const batchPromises = [];
-
-    for (let j = 0; j < BATCH_SIZE && (i + j) < TOTAL_SLOTS_TO_CHECK; j++) {
-      const photoNum = START_NUMBER + (i + j);
-      
-      batchPromises.push(
-        probeSlot(photoNum).then(result => {
-          if (result.exists && !loadedImagesMap.has(result.filename)) {
-            if (emptyState && gallery.contains(emptyState)) {
-              emptyState.remove();
-            }
-
-            currentGalleryList.push(result);
-            currentGalleryList.sort((a, b) => a.photoNum - b.photoNum);
-
-            const isTopRow = currentGalleryList.length <= 6;
-            const cardElement = createPhotoCard(result.filename, result.fullUrl, result.photoNum, isTopRow);
-            
-            gallery.appendChild(cardElement);
-            loadedImagesMap.set(result.filename, cardElement);
-            filterGallery();
-          }
-        })
-      );
-    }
-
-    // Process 15 requests at a time so network connection doesn't lock up
-    await Promise.all(batchPromises);
+function buildGalleryInstantly() {
+  if (emptyState && gallery.contains(emptyState)) {
+    emptyState.remove();
   }
+
+  const fragment = document.createDocumentFragment();
+
+  currentGalleryList = SHOT_NUMBERS.map(photoNum => {
+    const filename = `${FILE_PREFIX}${photoNum}.${FILE_EXTENSION}`;
+    const fullUrl = `${IMAGE_FOLDER}/${filename}`;
+    return { filename, fullUrl, photoNum };
+  });
+
+  currentGalleryList.forEach((item, index) => {
+    const isTopRow = index < 4; // Top 4 cards render immediately
+    const cardElement = createPhotoCard(item.filename, item.fullUrl, item.photoNum, isTopRow);
+    
+    fragment.appendChild(cardElement);
+    loadedImagesMap.set(item.filename, cardElement);
+  });
+
+  gallery.appendChild(fragment);
+  filterGallery();
 
   if (syncStatus) {
-    if (loadedImagesMap.size === 0) {
-      syncStatus.textContent = "No photos found. Verify GitHub file paths.";
-    } else {
-      syncStatus.textContent = `Sync Active (${loadedImagesMap.size} Photos Live)`;
-    }
+    syncStatus.textContent = `Sync Active (${currentGalleryList.length} Photos Live)`;
   }
 }
 
 // ==========================================
-// 5. LIGHTBOX CONTROLS & EVENT LISTENERS
+// 4. LIGHTBOX MODAL CONTROLS
 // ==========================================
 function openLightbox(index) {
   activeIndex = index;
@@ -250,4 +212,5 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowRight') showNextPhoto();
 });
 
-document.addEventListener("DOMContentLoaded", loadPhotos);
+// Run instantly when DOM is ready
+document.addEventListener("DOMContentLoaded", buildGalleryInstantly);
