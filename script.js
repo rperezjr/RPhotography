@@ -1,15 +1,16 @@
 /**
- * Monett Highschool Soccer Gallery - Targeted JPG Feed Script
- * Specifically targets _WAC7332.JPG pattern in images/ folder
+ * Monett Highschool Soccer Gallery - High-Speed Full Feed Script
+ * Optimized with batch chunking and fast timeouts to match Live Server performance.
  */
 
 // --- CONFIGURATION ---
 const IMAGE_FOLDER = 'images';
 const FILE_PREFIX = '_WAC';
-const FILE_EXTENSION = 'JPG';  // Matches exact uppercase extension on GitHub
+const FILE_EXTENSION = 'JPG';    // Must match exact casing on GitHub (.JPG vs .jpg)
 const START_NUMBER = 7332;
 const TOTAL_SLOTS_TO_CHECK = 150;
-const PROBE_TIMEOUT_MS = 2000;
+const BATCH_SIZE = 15;           // Probes 15 images at a time to keep browser queue clear
+const PROBE_TIMEOUT_MS = 800;    // 800ms fast timeout to drop missing photo slots instantly
 
 // --- DOM REFERENCES ---
 const gallery = document.getElementById('gallery');
@@ -93,6 +94,7 @@ function createPhotoCard(filename, fullUrl, photoNum, isTopRow) {
     </div>
   `;
 
+  // Fail-Safe: Cleanly remove card if network fails mid-load
   const imgTag = card.querySelector('img');
   imgTag.onerror = () => {
     card.remove();
@@ -111,13 +113,13 @@ function createPhotoCard(filename, fullUrl, photoNum, isTopRow) {
 }
 
 // ==========================================
-// 3. DIRECT PROBE ENGINE
+// 3. FAST PROBE ENGINE
 // ==========================================
 function probeUrl(fullUrl) {
   return new Promise((resolve) => {
     const img = new Image();
     let timer = setTimeout(() => {
-      img.src = "";
+      img.src = ""; // Abort request on timeout
       resolve(false);
     }, PROBE_TIMEOUT_MS);
 
@@ -141,44 +143,45 @@ async function probeSlot(photoNum) {
 }
 
 // ==========================================
-// 4. STREAMING GALLERY LOADER
+// 4. CHUNKED STREAMING GALLERY LOADER
 // ==========================================
 async function loadPhotos() {
   if (syncStatus) syncStatus.textContent = "Loading photos...";
 
-  const promises = [];
-  for (let i = 0; i < TOTAL_SLOTS_TO_CHECK; i++) {
-    const photoNum = START_NUMBER + i;
-    
-    const p = probeSlot(photoNum).then(result => {
-      if (result.exists) {
-        if (!loadedImagesMap.has(result.filename)) {
-          if (emptyState && gallery.contains(emptyState)) {
-            emptyState.remove();
+  for (let i = 0; i < TOTAL_SLOTS_TO_CHECK; i += BATCH_SIZE) {
+    const batchPromises = [];
+
+    for (let j = 0; j < BATCH_SIZE && (i + j) < TOTAL_SLOTS_TO_CHECK; j++) {
+      const photoNum = START_NUMBER + (i + j);
+      
+      batchPromises.push(
+        probeSlot(photoNum).then(result => {
+          if (result.exists && !loadedImagesMap.has(result.filename)) {
+            if (emptyState && gallery.contains(emptyState)) {
+              emptyState.remove();
+            }
+
+            currentGalleryList.push(result);
+            currentGalleryList.sort((a, b) => a.photoNum - b.photoNum);
+
+            const isTopRow = currentGalleryList.length <= 6;
+            const cardElement = createPhotoCard(result.filename, result.fullUrl, result.photoNum, isTopRow);
+            
+            gallery.appendChild(cardElement);
+            loadedImagesMap.set(result.filename, cardElement);
+            filterGallery();
           }
+        })
+      );
+    }
 
-          currentGalleryList.push(result);
-          currentGalleryList.sort((a, b) => a.photoNum - b.photoNum);
-
-          const isTopRow = currentGalleryList.length <= 6;
-          const cardElement = createPhotoCard(result.filename, result.fullUrl, result.photoNum, isTopRow);
-          
-          gallery.appendChild(cardElement);
-          loadedImagesMap.set(result.filename, cardElement);
-          filterGallery();
-        }
-      }
-      return result;
-    });
-
-    promises.push(p);
+    // Process 15 requests at a time so network connection doesn't lock up
+    await Promise.all(batchPromises);
   }
-
-  await Promise.allSettled(promises);
 
   if (syncStatus) {
     if (loadedImagesMap.size === 0) {
-      syncStatus.textContent = "No photos found. Check repository files on GitHub.";
+      syncStatus.textContent = "No photos found. Verify GitHub file paths.";
     } else {
       syncStatus.textContent = `Sync Active (${loadedImagesMap.size} Photos Live)`;
     }
@@ -186,7 +189,7 @@ async function loadPhotos() {
 }
 
 // ==========================================
-// 5. LIGHTBOX CONTROLS
+// 5. LIGHTBOX CONTROLS & EVENT LISTENERS
 // ==========================================
 function openLightbox(index) {
   activeIndex = index;
