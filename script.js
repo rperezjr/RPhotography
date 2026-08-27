@@ -1,16 +1,15 @@
 /**
- * Monett Highschool Soccer Gallery - Dynamic Batch Feed & Lightbox Script
- * Scans image slots in parallel batches of 10 with state-persisted arrays.
+ * Monett Highschool Soccer Gallery - High-Speed Full Feed Script
+ * Uses non-blocking concurrent probes with instant DOM stream insertion.
  */
 
 // --- CONFIGURATION ---
-const IMAGE_FOLDER = 'images'; 
-const START_NUMBER = 7332;        
-const TOTAL_SLOTS_TO_CHECK = 150; 
-const BATCH_SIZE = 10;           // Probes 10 images at a time to prevent connection locks
-const POLL_INTERVAL_MS = 30000;  // 30s poll interval
+const IMAGE_FOLDER = 'images';
+const START_NUMBER = 7332;
+const TOTAL_SLOTS_TO_CHECK = 150;
+const PROBE_TIMEOUT_MS = 1500; // Fast timeout for non-existent images
 
-// DOM Element References
+// --- DOM REFERENCES ---
 const gallery = document.getElementById('gallery');
 const syncStatus = document.getElementById('sync-status');
 const emptyState = document.getElementById('empty-state');
@@ -19,7 +18,7 @@ const searchClearBtn = document.getElementById('search-clear-btn');
 const displayGameTitle = document.getElementById('display-game-title');
 const photoCountBadge = document.getElementById('photo-count-badge');
 
-// Lightbox Modal Elements
+// --- LIGHTBOX ELEMENTS ---
 const lightbox = document.getElementById('lightbox');
 const lightboxImg = document.getElementById('lightbox-img');
 const lightboxCaption = document.getElementById('lightbox-caption');
@@ -30,10 +29,9 @@ const lightboxNext = document.getElementById('lightbox-next');
 // --- STATE MANAGEMENT ---
 let currentGameTitle = "Match 1: JHS Soccer Jamboree";
 let loadedImagesMap = new Map();
-let currentGalleryList = [];   
-let filteredGalleryList = [];  
+let currentGalleryList = [];
+let filteredGalleryList = [];
 let activeIndex = 0;
-let isSyncing = false;
 
 if (displayGameTitle) {
   displayGameTitle.textContent = currentGameTitle;
@@ -48,7 +46,6 @@ function filterGallery() {
   filteredGalleryList = currentGalleryList.filter(item => {
     const titleMatch = currentGameTitle.toLowerCase().includes(searchTerm);
     const photoNumMatch = item.photoNum.toString().includes(searchTerm);
-
     return searchTerm === "" || titleMatch || photoNumMatch;
   });
 
@@ -74,47 +71,7 @@ if (searchClearBtn) {
 }
 
 // ==========================================
-// 2. MULTI-EXTENSION IMAGE PROBE (JPG & jpg)
-// ==========================================
-function checkSingleUrl(url, timeoutMs = 2500) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    let timer = setTimeout(() => {
-      img.src = ""; // Abort hanging network request
-      resolve(false);
-    }, timeoutMs);
-
-    img.onload = () => {
-      clearTimeout(timer);
-      resolve(true);
-    };
-    img.onerror = () => {
-      clearTimeout(timer);
-      resolve(false);
-    };
-    img.src = url;
-  });
-}
-
-// Automatically checks common extensions to defeat casing 404s
-async function probeImageSlot(photoNum) {
-  const baseFilename = `_WAC${photoNum}`;
-  const extensions = ['JPG', 'jpg', 'jpeg', 'png'];
-
-  for (const ext of extensions) {
-    const filename = `${baseFilename}.${ext}`;
-    const fullUrl = `${IMAGE_FOLDER}/${filename}`;
-    const exists = await checkSingleUrl(fullUrl);
-    if (exists) {
-      return { exists: true, filename, fullUrl, photoNum };
-    }
-  }
-
-  return { exists: false, filename: `${baseFilename}.JPG`, fullUrl: `${IMAGE_FOLDER}/${baseFilename}.JPG`, photoNum };
-}
-
-// ==========================================
-// 3. CARD DOM CREATION
+// 2. CARD DOM CREATION
 // ==========================================
 function createPhotoCard(filename, fullUrl, photoNum, isTopRow) {
   const card = document.createElement('div');
@@ -125,10 +82,7 @@ function createPhotoCard(filename, fullUrl, photoNum, isTopRow) {
 
   card.innerHTML = `
     <div class="image-wrapper">
-      <img src="${fullUrl}" 
-           loading="${loadingAttr}" 
-           decoding="async" 
-           alt="Shot ${photoNum}" />
+      <img src="${fullUrl}" loading="${loadingAttr}" decoding="async" alt="Shot ${photoNum}" />
     </div>
     <div class="card-info">
       <div class="card-top-row">
@@ -137,7 +91,6 @@ function createPhotoCard(filename, fullUrl, photoNum, isTopRow) {
     </div>
   `;
 
-  // Fail-Safe: If an image throws a late error, remove card cleanly
   const imgTag = card.querySelector('img');
   imgTag.onerror = () => {
     card.remove();
@@ -146,7 +99,6 @@ function createPhotoCard(filename, fullUrl, photoNum, isTopRow) {
     filterGallery();
   };
 
-  // Attach Lightbox Trigger on Image Click
   const imgWrapper = card.querySelector('.image-wrapper');
   imgWrapper.addEventListener('click', () => {
     const index = filteredGalleryList.findIndex(item => item.filename === filename);
@@ -156,78 +108,96 @@ function createPhotoCard(filename, fullUrl, photoNum, isTopRow) {
   return card;
 }
 
-function preloadLightboxImage(index) {
-  if (filteredGalleryList[index]) {
+// ==========================================
+// 3. ULTRA-FAST ASYNC PROBE ENGINE
+// ==========================================
+function probeUrl(fullUrl) {
+  return new Promise((resolve) => {
     const img = new Image();
-    img.src = filteredGalleryList[index].fullUrl;
-  }
+    let timer = setTimeout(() => {
+      img.src = "";
+      resolve(false);
+    }, PROBE_TIMEOUT_MS);
+
+    img.onload = () => {
+      clearTimeout(timer);
+      resolve(true);
+    };
+    img.onerror = () => {
+      clearTimeout(timer);
+      resolve(false);
+    };
+    img.src = fullUrl;
+  });
+}
+
+async function probeSingleSlot(photoNum) {
+  const baseFilename = `_WAC${photoNum}`;
+  // Check primary upper & lower extensions concurrently
+  const upperUrl = `${IMAGE_FOLDER}/${baseFilename}.JPG`;
+  const lowerUrl = `${IMAGE_FOLDER}/${baseFilename}.jpg`;
+
+  const [upperValid, lowerValid] = await Promise.all([
+    probeUrl(upperUrl),
+    probeUrl(lowerUrl)
+  ]);
+
+  if (upperValid) return { exists: true, filename: `${baseFilename}.JPG`, fullUrl: upperUrl, photoNum };
+  if (lowerValid) return { exists: true, filename: `${baseFilename}.jpg`, fullUrl: lowerUrl, photoNum };
+
+  return { exists: false, filename: `${baseFilename}.JPG`, fullUrl: upperUrl, photoNum };
 }
 
 // ==========================================
-// 4. BATCHED SYNC ENGINE (STATE-PERSISTED)
+// 4. STREAMING GALLERY SYNC
 // ==========================================
-async function syncGallery() {
-  if (isSyncing) return; // Prevent overlapping sync loops
-  isSyncing = true;
+async function loadAllPhotosFast() {
+  if (syncStatus) syncStatus.textContent = "Scanning all photo slots...";
 
-  if (syncStatus && loadedImagesMap.size === 0) {
-    syncStatus.textContent = "Scanning for match photos...";
-  }
-
-  // Probe 10 images at a time
-  for (let i = 0; i < TOTAL_SLOTS_TO_CHECK; i += BATCH_SIZE) {
-    const batchPromises = [];
+  const promises = [];
+  for (let i = 0; i < TOTAL_SLOTS_TO_CHECK; i++) {
+    const photoNum = START_NUMBER + i;
     
-    for (let j = 0; j < BATCH_SIZE && (i + j) < TOTAL_SLOTS_TO_CHECK; j++) {
-      const photoNum = START_NUMBER + (i + j);
-      batchPromises.push(probeImageSlot(photoNum));
-    }
-
-    const batchResults = await Promise.all(batchPromises);
-    const fragment = document.createDocumentFragment();
-
-    batchResults.forEach(item => {
-      if (item.exists) {
-        // Persist to main list if not already present
-        if (!currentGalleryList.some(existing => existing.filename === item.filename)) {
-          currentGalleryList.push(item);
-        }
-
-        // Render to DOM if not already rendered
-        if (!loadedImagesMap.has(item.filename)) {
+    // Fire probe and attach immediate stream rendering callback
+    const p = probeSingleSlot(photoNum).then(result => {
+      if (result.exists) {
+        if (!loadedImagesMap.has(result.filename)) {
           if (emptyState && gallery.contains(emptyState)) {
             emptyState.remove();
           }
 
+          currentGalleryList.push(result);
+          // Sort list numerically to maintain sequential photo order
+          currentGalleryList.sort((a, b) => a.photoNum - b.photoNum);
+
           const isTopRow = currentGalleryList.length <= 6;
-          const cardElement = createPhotoCard(item.filename, item.fullUrl, item.photoNum, isTopRow);
-          fragment.appendChild(cardElement);
-          loadedImagesMap.set(item.filename, cardElement);
+          const cardElement = createPhotoCard(result.filename, result.fullUrl, result.photoNum, isTopRow);
+          
+          gallery.appendChild(cardElement);
+          loadedImagesMap.set(result.filename, cardElement);
+          filterGallery();
         }
       }
+      return result;
     });
 
-    if (fragment.children.length > 0) {
-      gallery.appendChild(fragment);
-      filterGallery();
-    }
+    promises.push(p);
   }
 
-  filterGallery(); 
+  // Wait for overall scan to complete
+  await Promise.allSettled(promises);
 
   if (syncStatus) {
     if (loadedImagesMap.size === 0) {
-      syncStatus.textContent = "No photos found. Verify GitHub path casing & static workflow file.";
+      syncStatus.textContent = "No photos found. Check images/ folder on GitHub.";
     } else {
       syncStatus.textContent = `Sync Active (${loadedImagesMap.size} Photos Live)`;
     }
   }
-
-  isSyncing = false;
 }
 
 // ==========================================
-// 5. LIGHTBOX MODAL CONTROLS
+// 5. LIGHTBOX CONTROLS
 // ==========================================
 function openLightbox(index) {
   activeIndex = index;
@@ -257,9 +227,6 @@ function updateLightboxContent() {
   if (lightboxCaption) {
     lightboxCaption.textContent = `${currentGameTitle} — Shot #${currentItem.photoNum}`;
   }
-
-  preloadLightboxImage((activeIndex + 1) % filteredGalleryList.length);
-  preloadLightboxImage((activeIndex - 1 + filteredGalleryList.length) % filteredGalleryList.length);
 }
 
 function showPrevPhoto() {
@@ -274,7 +241,6 @@ function showNextPhoto() {
   updateLightboxContent();
 }
 
-// Event Listeners for Lightbox Controls
 if (lightboxClose) lightboxClose.addEventListener('click', closeLightbox);
 if (lightboxPrev) lightboxPrev.addEventListener('click', (e) => { e.stopPropagation(); showPrevPhoto(); });
 if (lightboxNext) lightboxNext.addEventListener('click', (e) => { e.stopPropagation(); showNextPhoto(); });
@@ -287,12 +253,9 @@ if (lightbox) {
 
 document.addEventListener('keydown', (e) => {
   if (!lightbox || !lightbox.classList.contains('active')) return;
-
   if (e.key === 'Escape') closeLightbox();
   if (e.key === 'ArrowLeft') showPrevPhoto();
   if (e.key === 'ArrowRight') showNextPhoto();
 });
 
-// Run Initial Sync and Set Polling Loop
-syncGallery();
-setInterval(syncGallery, POLL_INTERVAL_MS);
+document.addEventListener("DOMContentLoaded", loadAllPhotosFast);
