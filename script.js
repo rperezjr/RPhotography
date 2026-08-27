@@ -1,17 +1,16 @@
 /**
  * Monett Highschool Soccer Gallery - Dynamic Batch Feed & Lightbox Script
- * Scans image slots in parallel batches of 10 for high speed on GitHub Pages.
+ * Scans image slots in parallel batches of 10 with state-persisted arrays.
  */
 
 // --- CONFIGURATION ---
 const IMAGE_FOLDER = 'images'; 
 const START_NUMBER = 7332;        
 const TOTAL_SLOTS_TO_CHECK = 150; 
-const BATCH_SIZE = 10;           // Probes 10 images at a time so network doesn't lock up
+const BATCH_SIZE = 10;           // Probes 10 images at a time to prevent connection locks
 const POLL_INTERVAL_MS = 30000;  // 30s poll interval
-const FILE_EXTENSION = 'JPG';    // Must match GitHub casing exactly (.JPG vs .jpg)
 
-// --- DOM ELEMENT REFERENCES ---
+// DOM Element References
 const gallery = document.getElementById('gallery');
 const syncStatus = document.getElementById('sync-status');
 const emptyState = document.getElementById('empty-state');
@@ -20,7 +19,7 @@ const searchClearBtn = document.getElementById('search-clear-btn');
 const displayGameTitle = document.getElementById('display-game-title');
 const photoCountBadge = document.getElementById('photo-count-badge');
 
-// --- LIGHTBOX MODAL ELEMENTS ---
+// Lightbox Modal Elements
 const lightbox = document.getElementById('lightbox');
 const lightboxImg = document.getElementById('lightbox-img');
 const lightboxCaption = document.getElementById('lightbox-caption');
@@ -34,6 +33,7 @@ let loadedImagesMap = new Map();
 let currentGalleryList = [];   
 let filteredGalleryList = [];  
 let activeIndex = 0;
+let isSyncing = false;
 
 if (displayGameTitle) {
   displayGameTitle.textContent = currentGameTitle;
@@ -74,9 +74,9 @@ if (searchClearBtn) {
 }
 
 // ==========================================
-// 2. TIMEOUT-PROTECTED IMAGE PROBE
+// 2. MULTI-EXTENSION IMAGE PROBE (JPG & jpg)
 // ==========================================
-function checkImageExists(url, timeoutMs = 2500) {
+function checkSingleUrl(url, timeoutMs = 2500) {
   return new Promise((resolve) => {
     const img = new Image();
     let timer = setTimeout(() => {
@@ -94,6 +94,23 @@ function checkImageExists(url, timeoutMs = 2500) {
     };
     img.src = url;
   });
+}
+
+// Automatically checks common extensions to defeat casing 404s
+async function probeImageSlot(photoNum) {
+  const baseFilename = `_WAC${photoNum}`;
+  const extensions = ['JPG', 'jpg', 'jpeg', 'png'];
+
+  for (const ext of extensions) {
+    const filename = `${baseFilename}.${ext}`;
+    const fullUrl = `${IMAGE_FOLDER}/${filename}`;
+    const exists = await checkSingleUrl(fullUrl);
+    if (exists) {
+      return { exists: true, filename, fullUrl, photoNum };
+    }
+  }
+
+  return { exists: false, filename: `${baseFilename}.JPG`, fullUrl: `${IMAGE_FOLDER}/${baseFilename}.JPG`, photoNum };
 }
 
 // ==========================================
@@ -120,6 +137,15 @@ function createPhotoCard(filename, fullUrl, photoNum, isTopRow) {
     </div>
   `;
 
+  // Fail-Safe: If an image throws a late error, remove card cleanly
+  const imgTag = card.querySelector('img');
+  imgTag.onerror = () => {
+    card.remove();
+    loadedImagesMap.delete(filename);
+    currentGalleryList = currentGalleryList.filter(item => item.filename !== filename);
+    filterGallery();
+  };
+
   // Attach Lightbox Trigger on Image Click
   const imgWrapper = card.querySelector('.image-wrapper');
   imgWrapper.addEventListener('click', () => {
@@ -138,10 +164,11 @@ function preloadLightboxImage(index) {
 }
 
 // ==========================================
-// 4. BATCHED SYNC ENGINE (INCREMENTAL RENDER)
+// 4. BATCHED SYNC ENGINE (STATE-PERSISTED)
 // ==========================================
 async function syncGallery() {
-  let newList = [];
+  if (isSyncing) return; // Prevent overlapping sync loops
+  isSyncing = true;
 
   if (syncStatus && loadedImagesMap.size === 0) {
     syncStatus.textContent = "Scanning for match photos...";
@@ -153,29 +180,26 @@ async function syncGallery() {
     
     for (let j = 0; j < BATCH_SIZE && (i + j) < TOTAL_SLOTS_TO_CHECK; j++) {
       const photoNum = START_NUMBER + (i + j);
-      const filename = `_WAC${photoNum}.${FILE_EXTENSION}`;
-      const fullUrl = `${IMAGE_FOLDER}/${filename}`;
-
-      batchPromises.push(
-        checkImageExists(fullUrl).then(exists => ({ exists, filename, fullUrl, photoNum }))
-      );
+      batchPromises.push(probeImageSlot(photoNum));
     }
 
     const batchResults = await Promise.all(batchPromises);
-
-    // Render batch immediately as soon as it resolves
     const fragment = document.createDocumentFragment();
 
     batchResults.forEach(item => {
       if (item.exists) {
-        newList.push(item);
+        // Persist to main list if not already present
+        if (!currentGalleryList.some(existing => existing.filename === item.filename)) {
+          currentGalleryList.push(item);
+        }
 
+        // Render to DOM if not already rendered
         if (!loadedImagesMap.has(item.filename)) {
           if (emptyState && gallery.contains(emptyState)) {
             emptyState.remove();
           }
 
-          const isTopRow = newList.length <= 6;
+          const isTopRow = currentGalleryList.length <= 6;
           const cardElement = createPhotoCard(item.filename, item.fullUrl, item.photoNum, isTopRow);
           fragment.appendChild(cardElement);
           loadedImagesMap.set(item.filename, cardElement);
@@ -185,17 +209,21 @@ async function syncGallery() {
 
     if (fragment.children.length > 0) {
       gallery.appendChild(fragment);
-      currentGalleryList = newList;
       filterGallery();
     }
   }
 
-  currentGalleryList = newList;
   filterGallery(); 
 
   if (syncStatus) {
-    syncStatus.textContent = `Sync Active (${loadedImagesMap.size} Photos Live)`;
+    if (loadedImagesMap.size === 0) {
+      syncStatus.textContent = "No photos found. Verify GitHub path casing & static workflow file.";
+    } else {
+      syncStatus.textContent = `Sync Active (${loadedImagesMap.size} Photos Live)`;
+    }
   }
+
+  isSyncing = false;
 }
 
 // ==========================================
