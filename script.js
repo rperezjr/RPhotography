@@ -1,11 +1,17 @@
+/**
+ * Monett Highschool Soccer Gallery - Dynamic Batch Feed & Lightbox Script
+ * Scans image slots in parallel batches of 10 for high speed on GitHub Pages.
+ */
+
 // --- CONFIGURATION ---
-const IMAGE_FOLDER = './images';
+const IMAGE_FOLDER = 'images'; 
 const START_NUMBER = 7332;        
 const TOTAL_SLOTS_TO_CHECK = 150; 
-const POLL_INTERVAL_MS = 10000;    
-const FILE_EXTENSION = 'JPG'; // Match exact uppercase extension on GitHub
+const BATCH_SIZE = 10;           // Probes 10 images at a time so network doesn't lock up
+const POLL_INTERVAL_MS = 30000;  // 30s poll interval
+const FILE_EXTENSION = 'JPG';    // Must match GitHub casing exactly (.JPG vs .jpg)
 
-// DOM Element References
+// --- DOM ELEMENT REFERENCES ---
 const gallery = document.getElementById('gallery');
 const syncStatus = document.getElementById('sync-status');
 const emptyState = document.getElementById('empty-state');
@@ -14,7 +20,7 @@ const searchClearBtn = document.getElementById('search-clear-btn');
 const displayGameTitle = document.getElementById('display-game-title');
 const photoCountBadge = document.getElementById('photo-count-badge');
 
-// Lightbox Modal Elements
+// --- LIGHTBOX MODAL ELEMENTS ---
 const lightbox = document.getElementById('lightbox');
 const lightboxImg = document.getElementById('lightbox-img');
 const lightboxCaption = document.getElementById('lightbox-caption');
@@ -22,7 +28,7 @@ const lightboxClose = document.getElementById('lightbox-close');
 const lightboxPrev = document.getElementById('lightbox-prev');
 const lightboxNext = document.getElementById('lightbox-next');
 
-// State Management
+// --- STATE MANAGEMENT ---
 let currentGameTitle = "Match 1: JHS Soccer Jamboree";
 let loadedImagesMap = new Map();
 let currentGalleryList = [];   
@@ -33,7 +39,9 @@ if (displayGameTitle) {
   displayGameTitle.textContent = currentGameTitle;
 }
 
-// Live Search & Filter Logic
+// ==========================================
+// 1. LIVE SEARCH & FILTER ENGINE
+// ==========================================
 function filterGallery() {
   const searchTerm = gameSearchInput ? gameSearchInput.value.toLowerCase().trim() : "";
 
@@ -65,31 +73,44 @@ if (searchClearBtn) {
   });
 }
 
-// Parallel Image Presence Probe
-function checkImageExists(url) {
+// ==========================================
+// 2. TIMEOUT-PROTECTED IMAGE PROBE
+// ==========================================
+function checkImageExists(url, timeoutMs = 2500) {
   return new Promise((resolve) => {
     const img = new Image();
-    img.onload = () => resolve(true);
-    img.onerror = () => resolve(false);
+    let timer = setTimeout(() => {
+      img.src = ""; // Abort hanging network request
+      resolve(false);
+    }, timeoutMs);
+
+    img.onload = () => {
+      clearTimeout(timer);
+      resolve(true);
+    };
+    img.onerror = () => {
+      clearTimeout(timer);
+      resolve(false);
+    };
     img.src = url;
   });
 }
 
-// Card Creation with ONLY Shot Number
+// ==========================================
+// 3. CARD DOM CREATION
+// ==========================================
 function createPhotoCard(filename, fullUrl, photoNum, isTopRow) {
   const card = document.createElement('div');
   card.className = 'photo-card';
   card.dataset.filename = filename;
 
   const loadingAttr = isTopRow ? 'eager' : 'lazy';
-  const fetchPriority = isTopRow ? 'fetchpriority="high"' : '';
 
   card.innerHTML = `
     <div class="image-wrapper">
       <img src="${fullUrl}" 
            loading="${loadingAttr}" 
            decoding="async" 
-           ${fetchPriority} 
            alt="Shot ${photoNum}" />
     </div>
     <div class="card-info">
@@ -109,7 +130,6 @@ function createPhotoCard(filename, fullUrl, photoNum, isTopRow) {
   return card;
 }
 
-// Preload adjacent photos for smooth lightbox navigation
 function preloadLightboxImage(index) {
   if (filteredGalleryList[index]) {
     const img = new Image();
@@ -117,57 +137,70 @@ function preloadLightboxImage(index) {
   }
 }
 
-// Fast Parallel Polling Sync Loop
+// ==========================================
+// 4. BATCHED SYNC ENGINE (INCREMENTAL RENDER)
+// ==========================================
 async function syncGallery() {
-  let validCount = 0;
   let newList = [];
 
-  const checkPromises = [];
-  for (let i = 0; i < TOTAL_SLOTS_TO_CHECK; i++) {
-    const photoNum = START_NUMBER + i;
-    const filename = `_WAC${photoNum}.${FILE_EXTENSION}`;
-    const fullUrl = `${IMAGE_FOLDER}/${filename}`;
-
-    checkPromises.push(
-      checkImageExists(fullUrl).then(exists => ({ exists, filename, fullUrl, photoNum }))
-    );
+  if (syncStatus && loadedImagesMap.size === 0) {
+    syncStatus.textContent = "Scanning for match photos...";
   }
 
-  const results = await Promise.all(checkPromises);
+  // Probe 10 images at a time
+  for (let i = 0; i < TOTAL_SLOTS_TO_CHECK; i += BATCH_SIZE) {
+    const batchPromises = [];
+    
+    for (let j = 0; j < BATCH_SIZE && (i + j) < TOTAL_SLOTS_TO_CHECK; j++) {
+      const photoNum = START_NUMBER + (i + j);
+      const filename = `_WAC${photoNum}.${FILE_EXTENSION}`;
+      const fullUrl = `${IMAGE_FOLDER}/${filename}`;
 
-  if (emptyState && gallery.contains(emptyState)) {
-    emptyState.remove();
-  }
-
-  const fragment = document.createDocumentFragment();
-
-  results.forEach(item => {
-    if (item.exists) {
-      validCount++;
-      newList.push(item);
-
-      if (!loadedImagesMap.has(item.filename)) {
-        const isTopRow = newList.length <= 6;
-        const cardElement = createPhotoCard(item.filename, item.fullUrl, item.photoNum, isTopRow);
-        fragment.appendChild(cardElement);
-        loadedImagesMap.set(item.filename, cardElement);
-      }
+      batchPromises.push(
+        checkImageExists(fullUrl).then(exists => ({ exists, filename, fullUrl, photoNum }))
+      );
     }
-  });
 
-  if (fragment.children.length > 0) {
-    gallery.appendChild(fragment);
+    const batchResults = await Promise.all(batchPromises);
+
+    // Render batch immediately as soon as it resolves
+    const fragment = document.createDocumentFragment();
+
+    batchResults.forEach(item => {
+      if (item.exists) {
+        newList.push(item);
+
+        if (!loadedImagesMap.has(item.filename)) {
+          if (emptyState && gallery.contains(emptyState)) {
+            emptyState.remove();
+          }
+
+          const isTopRow = newList.length <= 6;
+          const cardElement = createPhotoCard(item.filename, item.fullUrl, item.photoNum, isTopRow);
+          fragment.appendChild(cardElement);
+          loadedImagesMap.set(item.filename, cardElement);
+        }
+      }
+    });
+
+    if (fragment.children.length > 0) {
+      gallery.appendChild(fragment);
+      currentGalleryList = newList;
+      filterGallery();
+    }
   }
 
   currentGalleryList = newList;
   filterGallery(); 
 
   if (syncStatus) {
-    syncStatus.textContent = `Sync Active (${validCount} Photos Live)`;
+    syncStatus.textContent = `Sync Active (${loadedImagesMap.size} Photos Live)`;
   }
 }
 
-// --- LIGHTBOX FUNCTIONS ---
+// ==========================================
+// 5. LIGHTBOX MODAL CONTROLS
+// ==========================================
 function openLightbox(index) {
   activeIndex = index;
   updateLightboxContent();
