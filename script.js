@@ -1,12 +1,11 @@
 /**
- * Monett Highschool Soccer Gallery - Instant Load Engine
- * Generates 150 shot slots programmatically with zero probe delay.
+ * RPhotography - Monett Soccer Match Feed & Carousel Engine
  */
 
 // --- CONFIGURATION ---
 const IMAGE_FOLDER = 'images';
 const FILE_PREFIX = '_WAC';
-const FILE_EXTENSION = 'JPG'; // Case-sensitive: must match GitHub casing exactly
+const FILE_EXTENSION = 'JPG';
 
 const START_NUMBER = 7332;
 const TOTAL_PHOTOS = 150;
@@ -18,14 +17,13 @@ const SHOT_NUMBERS = Array.from({ length: TOTAL_PHOTOS }, (_, i) => START_NUMBER
 const gallery = document.getElementById('gallery');
 const syncStatus = document.getElementById('sync-status');
 const emptyState = document.getElementById('empty-state');
-const gameSearchInput = document.getElementById('game-search-input');
-const searchClearBtn = document.getElementById('search-clear-btn');
+const gameTitleInput = document.getElementById('game-title-input');
+const updateTitleBtn = document.getElementById('update-title-btn');
 const displayGameTitle = document.getElementById('display-game-title');
 const photoCountBadge = document.getElementById('photo-count-badge');
 
-// --- LIGHTBOX ELEMENTS ---
+// --- LIGHTBOX CAROUSEL ELEMENTS ---
 const lightbox = document.getElementById('lightbox');
-const lightboxImg = document.getElementById('lightbox-img');
 const lightboxCaption = document.getElementById('lightbox-caption');
 const lightboxClose = document.getElementById('lightbox-close');
 const lightboxPrev = document.getElementById('lightbox-prev');
@@ -46,17 +44,16 @@ if (displayGameTitle) {
 // 1. LIVE SEARCH & FILTER ENGINE
 // ==========================================
 function filterGallery() {
-  const searchTerm = gameSearchInput ? gameSearchInput.value.toLowerCase().trim() : "";
+  const searchTerm = gameTitleInput ? gameTitleInput.value.toLowerCase().trim() : "";
 
   filteredGalleryList = currentGalleryList.filter(item => {
-    const titleMatch = currentGameTitle.toLowerCase().includes(searchTerm);
     const photoNumMatch = item.photoNum.toString().includes(searchTerm);
-    return searchTerm === "" || titleMatch || photoNumMatch;
+    return searchTerm === "" || photoNumMatch;
   });
 
   loadedImagesMap.forEach((cardElement, filename) => {
     const isVisible = filteredGalleryList.some(item => item.filename === filename);
-    cardElement.style.display = isVisible ? 'flex' : 'none';
+    cardElement.style.display = isVisible ? '' : 'none';
   });
 
   if (photoCountBadge) {
@@ -64,26 +61,22 @@ function filterGallery() {
   }
 }
 
-if (gameSearchInput) {
-  gameSearchInput.addEventListener('input', filterGallery);
+if (gameTitleInput) {
+  gameTitleInput.addEventListener('input', filterGallery);
 }
 
-if (searchClearBtn) {
-  searchClearBtn.addEventListener('click', () => {
-    gameSearchInput.value = '';
-    filterGallery();
-  });
+if (updateTitleBtn) {
+  updateTitleBtn.addEventListener('click', filterGallery);
 }
 
 // ==========================================
-// 2. CARD DOM CREATION (LAZY LOAD OPTIMIZED)
+// 2. CARD DOM CREATION (CLEAN GRID)
 // ==========================================
 function createPhotoCard(filename, fullUrl, photoNum, isTopRow) {
   const card = document.createElement('div');
   card.className = 'photo-card';
   card.dataset.filename = filename;
 
-  // Eager load only top 4 images; lazy load everything else offscreen
   const loadingAttr = isTopRow ? 'eager' : 'lazy';
 
   card.innerHTML = `
@@ -91,16 +84,10 @@ function createPhotoCard(filename, fullUrl, photoNum, isTopRow) {
       <img src="${fullUrl}" 
            loading="${loadingAttr}" 
            decoding="async" 
-           alt="Shot ${photoNum}" />
-    </div>
-    <div class="card-info">
-      <div class="card-top-row">
-        <span class="card-title">Shot #${photoNum}</span>
-      </div>
+           alt="Soccer match photo" />
     </div>
   `;
 
-  // Clean fail-safe: remove card if slot photo wasn't uploaded
   const imgTag = card.querySelector('img');
   imgTag.onerror = () => {
     card.remove();
@@ -109,8 +96,7 @@ function createPhotoCard(filename, fullUrl, photoNum, isTopRow) {
     filterGallery();
   };
 
-  const imgWrapper = card.querySelector('.image-wrapper');
-  imgWrapper.addEventListener('click', () => {
+  card.addEventListener('click', () => {
     const index = filteredGalleryList.findIndex(item => item.filename === filename);
     if (index !== -1) openLightbox(index);
   });
@@ -119,7 +105,7 @@ function createPhotoCard(filename, fullUrl, photoNum, isTopRow) {
 }
 
 // ==========================================
-// 3. INSTANT DOM STREAMING BUILDER
+// 3. INSTANT GALLERY BUILDER
 // ==========================================
 function buildGalleryInstantly() {
   if (emptyState && gallery.contains(emptyState)) {
@@ -135,7 +121,7 @@ function buildGalleryInstantly() {
   });
 
   currentGalleryList.forEach((item, index) => {
-    const isTopRow = index < 4; // Top 4 cards render immediately
+    const isTopRow = index < 6;
     const cardElement = createPhotoCard(item.filename, item.fullUrl, item.photoNum, isTopRow);
     
     fragment.appendChild(cardElement);
@@ -151,7 +137,7 @@ function buildGalleryInstantly() {
 }
 
 // ==========================================
-// 4. LIGHTBOX MODAL CONTROLS
+// 4. CAROUSEL POP-UP MODAL CONTROLS
 // ==========================================
 function openLightbox(index) {
   activeIndex = index;
@@ -170,16 +156,31 @@ function closeLightbox() {
 }
 
 function updateLightboxContent() {
-  const currentItem = filteredGalleryList[activeIndex];
-  if (!currentItem) return;
+  if (filteredGalleryList.length === 0) return;
 
-  if (lightboxImg) {
-    lightboxImg.src = currentItem.fullUrl;
-    lightboxImg.decoding = 'async';
-  }
-  
+  const total = filteredGalleryList.length;
+  const getIdx = (offset) => (activeIndex + offset + total) % total;
+
+  const slots = [
+    { id: 'card-far-left', index: getIdx(-2) },
+    { id: 'card-left', index: getIdx(-1) },
+    { id: 'card-center', index: getIdx(0) },
+    { id: 'card-right', index: getIdx(1) },
+    { id: 'card-far-right', index: getIdx(2) }
+  ];
+
+  slots.forEach(slot => {
+    const el = document.getElementById(slot.id);
+    if (el) {
+      const img = el.querySelector('img');
+      if (img && filteredGalleryList[slot.index]) {
+        img.src = filteredGalleryList[slot.index].fullUrl;
+      }
+    }
+  });
+
   if (lightboxCaption) {
-    lightboxCaption.textContent = `${currentGameTitle} — Shot #${currentItem.photoNum}`;
+    lightboxCaption.textContent = `Shot #${filteredGalleryList[activeIndex].photoNum} (${activeIndex + 1} of ${total})`;
   }
 }
 
@@ -212,5 +213,4 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowRight') showNextPhoto();
 });
 
-// Run instantly when DOM is ready
 document.addEventListener("DOMContentLoaded", buildGalleryInstantly);
