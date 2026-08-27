@@ -1,13 +1,15 @@
 /**
- * Monett Highschool Soccer Gallery - High-Speed Full Feed Script
- * Uses non-blocking concurrent probes with instant DOM stream insertion.
+ * Monett Highschool Soccer Gallery - Targeted JPG Feed Script
+ * Specifically targets _WAC7332.JPG pattern in images/ folder
  */
 
 // --- CONFIGURATION ---
 const IMAGE_FOLDER = 'images';
+const FILE_PREFIX = '_WAC';
+const FILE_EXTENSION = 'JPG';  // Matches exact uppercase extension on GitHub
 const START_NUMBER = 7332;
 const TOTAL_SLOTS_TO_CHECK = 150;
-const PROBE_TIMEOUT_MS = 1500; // Fast timeout for non-existent images
+const PROBE_TIMEOUT_MS = 2000;
 
 // --- DOM REFERENCES ---
 const gallery = document.getElementById('gallery');
@@ -109,7 +111,7 @@ function createPhotoCard(filename, fullUrl, photoNum, isTopRow) {
 }
 
 // ==========================================
-// 3. ULTRA-FAST ASYNC PROBE ENGINE
+// 3. DIRECT PROBE ENGINE
 // ==========================================
 function probeUrl(fullUrl) {
   return new Promise((resolve) => {
@@ -131,35 +133,24 @@ function probeUrl(fullUrl) {
   });
 }
 
-async function probeSingleSlot(photoNum) {
-  const baseFilename = `_WAC${photoNum}`;
-  // Check primary upper & lower extensions concurrently
-  const upperUrl = `${IMAGE_FOLDER}/${baseFilename}.JPG`;
-  const lowerUrl = `${IMAGE_FOLDER}/${baseFilename}.jpg`;
-
-  const [upperValid, lowerValid] = await Promise.all([
-    probeUrl(upperUrl),
-    probeUrl(lowerUrl)
-  ]);
-
-  if (upperValid) return { exists: true, filename: `${baseFilename}.JPG`, fullUrl: upperUrl, photoNum };
-  if (lowerValid) return { exists: true, filename: `${baseFilename}.jpg`, fullUrl: lowerUrl, photoNum };
-
-  return { exists: false, filename: `${baseFilename}.JPG`, fullUrl: upperUrl, photoNum };
+async function probeSlot(photoNum) {
+  const filename = `${FILE_PREFIX}${photoNum}.${FILE_EXTENSION}`;
+  const fullUrl = `${IMAGE_FOLDER}/${filename}`;
+  const exists = await probeUrl(fullUrl);
+  return { exists, filename, fullUrl, photoNum };
 }
 
 // ==========================================
-// 4. STREAMING GALLERY SYNC
+// 4. STREAMING GALLERY LOADER
 // ==========================================
-async function loadAllPhotosFast() {
-  if (syncStatus) syncStatus.textContent = "Scanning all photo slots...";
+async function loadPhotos() {
+  if (syncStatus) syncStatus.textContent = "Loading photos...";
 
   const promises = [];
   for (let i = 0; i < TOTAL_SLOTS_TO_CHECK; i++) {
     const photoNum = START_NUMBER + i;
     
-    // Fire probe and attach immediate stream rendering callback
-    const p = probeSingleSlot(photoNum).then(result => {
+    const p = probeSlot(photoNum).then(result => {
       if (result.exists) {
         if (!loadedImagesMap.has(result.filename)) {
           if (emptyState && gallery.contains(emptyState)) {
@@ -167,7 +158,6 @@ async function loadAllPhotosFast() {
           }
 
           currentGalleryList.push(result);
-          // Sort list numerically to maintain sequential photo order
           currentGalleryList.sort((a, b) => a.photoNum - b.photoNum);
 
           const isTopRow = currentGalleryList.length <= 6;
@@ -184,12 +174,11 @@ async function loadAllPhotosFast() {
     promises.push(p);
   }
 
-  // Wait for overall scan to complete
   await Promise.allSettled(promises);
 
   if (syncStatus) {
     if (loadedImagesMap.size === 0) {
-      syncStatus.textContent = "No photos found. Check images/ folder on GitHub.";
+      syncStatus.textContent = "No photos found. Check repository files on GitHub.";
     } else {
       syncStatus.textContent = `Sync Active (${loadedImagesMap.size} Photos Live)`;
     }
@@ -258,4 +247,4 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowRight') showNextPhoto();
 });
 
-document.addEventListener("DOMContentLoaded", loadAllPhotosFast);
+document.addEventListener("DOMContentLoaded", loadPhotos);
