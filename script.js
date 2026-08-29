@@ -9,7 +9,8 @@ const FILE_PREFIX = '_WAC';
 const FILE_EXTENSION = 'JPG';
 
 // --- MATCHES MANIFEST ---
-// Add new games here; the dropdown and titles will populate automatically!
+// Set startNum to your first shot and endNum to your last shot off the camera.
+// Missing/deleted numbers inside the range will be skipped automatically!
 const MATCH_DATA = [
   {
     id: 'jhs-jamboree',
@@ -23,14 +24,6 @@ const MATCH_DATA = [
     startNum: 7476,
     endNum: 7514
   }
-   /* Example for future matches:
-  , {
-    id: 'reeds-spring',
-    title: 'Match 2: Monett vs Reeds Spring',
-    startNum: 7476,
-    endNum: 7514
-  }
-  */
 ];
 
 // --- DOM REFERENCES ---
@@ -80,7 +73,6 @@ function initializeMatchDropdown() {
 function loadMatchPhotos(match) {
   currentMatch = match;
   
-  // DYNAMICALLY UPDATE SECTION TITLE
   if (displayGameTitle) {
     displayGameTitle.textContent = currentMatch.title;
   }
@@ -89,32 +81,58 @@ function loadMatchPhotos(match) {
   loadedImagesMap.clear();
   currentGalleryList = [];
 
-  // Sort shot numbers in ascending order
+  // Generate sequence range between startNum and endNum
   const count = match.endNum - match.startNum + 1;
   const sortedNumbers = Array.from({ length: count }, (_, i) => match.startNum + i).sort((a, b) => a - b);
 
-  currentGalleryList = sortedNumbers.map(photoNum => {
+  const potentialList = sortedNumbers.map(photoNum => {
     const filename = `${FILE_PREFIX}${photoNum}.${FILE_EXTENSION}`;
     const fullUrl = `${IMAGE_FOLDER}/${filename}`;
     return { filename, fullUrl, photoNum };
   });
 
-  const fragment = document.createDocumentFragment();
+  // Probe each photo in range and only add existing files
+  potentialList.forEach((item) => {
+    const testerImg = new Image();
 
-  currentGalleryList.forEach((item, index) => {
-    const isTopRow = index < 6;
-    const cardElement = createPhotoCard(item.filename, item.fullUrl, item.photoNum, isTopRow);
-    
-    fragment.appendChild(cardElement);
-    loadedImagesMap.set(item.filename, cardElement);
+    testerImg.onload = () => {
+      // Photo exists on server: add to gallery list
+      currentGalleryList.push(item);
+      
+      // Keep gallery list sorted by shot number
+      currentGalleryList.sort((a, b) => a.photoNum - b.photoNum);
+
+      const isTopRow = currentGalleryList.length <= 6;
+      const cardElement = createPhotoCard(item.filename, item.fullUrl, item.photoNum, isTopRow);
+
+      loadedImagesMap.set(item.filename, cardElement);
+      
+      // Insert in sorted numerical order in the DOM
+      const existingCards = Array.from(gallery.children);
+      const insertBeforeCard = existingCards.find(card => {
+        const num = parseInt(card.dataset.photoNum, 10);
+        return num > item.photoNum;
+      });
+
+      if (insertBeforeCard) {
+        gallery.insertBefore(cardElement, insertBeforeCard);
+      } else {
+        gallery.appendChild(cardElement);
+      }
+
+      // Update filtered list & badge automatically
+      filterGallery();
+
+      if (syncStatus) {
+        syncStatus.textContent = `Sync Active (${currentGalleryList.length} Photos Loaded)`;
+      }
+    };
+
+    // Missing/deleted numbers fail quietly without inflating the photo count
+    testerImg.onerror = () => {};
+
+    testerImg.src = item.fullUrl;
   });
-
-  gallery.appendChild(fragment);
-  filterGallery();
-
-  if (syncStatus) {
-    syncStatus.textContent = `Sync Active (${currentGalleryList.length} Photos Loaded)`;
-  }
 }
 
 // ==========================================
@@ -147,6 +165,7 @@ function createPhotoCard(filename, fullUrl, photoNum, isTopRow) {
   const card = document.createElement('div');
   card.className = 'photo-card';
   card.dataset.filename = filename;
+  card.dataset.photoNum = photoNum;
 
   const loadingAttr = isTopRow ? 'eager' : 'lazy';
 
@@ -155,14 +174,6 @@ function createPhotoCard(filename, fullUrl, photoNum, isTopRow) {
       <img src="${fullUrl}" loading="${loadingAttr}" decoding="async" alt="${currentMatch.title} Shot ${photoNum}" />
     </div>
   `;
-
-  const imgTag = card.querySelector('img');
-  imgTag.onerror = () => {
-    card.remove();
-    loadedImagesMap.delete(filename);
-    currentGalleryList = currentGalleryList.filter(item => item.filename !== filename);
-    filterGallery();
-  };
 
   card.addEventListener('click', () => {
     const index = filteredGalleryList.findIndex(item => item.filename === filename);
