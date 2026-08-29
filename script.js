@@ -13,16 +13,22 @@ const FILE_EXTENSION = 'JPG';
 const MATCH_DATA = [
   {
     id: 'jhs-jamboree',
-    title: 'Match 1: JHS Soccer Jamboree',
+    title: 'JHS Soccer Jamboree',
     startNum: 7332,
     endNum: 7481
+  },
+  {
+    id: 'reeds-spring',
+    title: 'Monett vs Hillcrest',
+    startNum: 7476,
+    endNum: 7514
   }
-  /* Example for future matches:
+   /* Example for future matches:
   , {
     id: 'reeds-spring',
     title: 'Match 2: Monett vs Reeds Spring',
-    startNum: 7482,
-    endNum: 7600
+    startNum: 7476,
+    endNum: 7514
   }
   */
 ];
