@@ -1,5 +1,6 @@
 /**
- * RPhotography - Monett Soccer Match Feed & Carousel Engine
+ * RPhotography - Monett Soccer Gallery Engine
+ * Automatic Dropdown Population & Match Title Sync Script
  */
 
 // --- CONFIGURATION ---
@@ -7,22 +8,36 @@ const IMAGE_FOLDER = 'images';
 const FILE_PREFIX = '_WAC';
 const FILE_EXTENSION = 'JPG';
 
-const START_NUMBER = 7332;
-const TOTAL_PHOTOS = 150;
-
-// Programmatically generate array: [7332, 7333, ..., 7481]
-const SHOT_NUMBERS = Array.from({ length: TOTAL_PHOTOS }, (_, i) => START_NUMBER + i);
+// --- MATCHES MANIFEST ---
+// Add new games here; the dropdown and titles will populate automatically!
+const MATCH_DATA = [
+  {
+    id: 'jhs-jamboree',
+    title: 'Match 1: JHS Soccer Jamboree',
+    startNum: 7332,
+    endNum: 7481
+  }
+  /* Example for future matches:
+  , {
+    id: 'reeds-spring',
+    title: 'Match 2: Monett vs Reeds Spring',
+    startNum: 7482,
+    endNum: 7600
+  }
+  */
+];
 
 // --- DOM REFERENCES ---
 const gallery = document.getElementById('gallery');
 const syncStatus = document.getElementById('sync-status');
 const emptyState = document.getElementById('empty-state');
+const matchSelect = document.getElementById('match-select');
 const gameTitleInput = document.getElementById('game-title-input');
 const updateTitleBtn = document.getElementById('update-title-btn');
 const displayGameTitle = document.getElementById('display-game-title');
 const photoCountBadge = document.getElementById('photo-count-badge');
 
-// --- LIGHTBOX CAROUSEL ELEMENTS ---
+// --- LIGHTBOX ELEMENTS ---
 const lightbox = document.getElementById('lightbox');
 const lightboxCaption = document.getElementById('lightbox-caption');
 const lightboxClose = document.getElementById('lightbox-close');
@@ -30,25 +45,80 @@ const lightboxPrev = document.getElementById('lightbox-prev');
 const lightboxNext = document.getElementById('lightbox-next');
 
 // --- STATE MANAGEMENT ---
-let currentGameTitle = "Match 1: JHS Soccer Jamboree";
+let currentMatch = MATCH_DATA[0];
 let loadedImagesMap = new Map();
 let currentGalleryList = [];
 let filteredGalleryList = [];
 let activeIndex = 0;
 
-if (displayGameTitle) {
-  displayGameTitle.textContent = currentGameTitle;
+// ==========================================
+// 1. DYNAMIC DROPDOWN & MATCH SWITCHER
+// ==========================================
+function initializeMatchDropdown() {
+  if (!matchSelect) return;
+  
+  matchSelect.innerHTML = '';
+  MATCH_DATA.forEach(match => {
+    const opt = document.createElement('option');
+    opt.value = match.id;
+    opt.textContent = match.title;
+    matchSelect.appendChild(opt);
+  });
+
+  matchSelect.addEventListener('change', (e) => {
+    const selected = MATCH_DATA.find(m => m.id === e.target.value);
+    if (selected) loadMatchPhotos(selected);
+  });
+}
+
+function loadMatchPhotos(match) {
+  currentMatch = match;
+  
+  // DYNAMICALLY UPDATE SECTION TITLE
+  if (displayGameTitle) {
+    displayGameTitle.textContent = currentMatch.title;
+  }
+  
+  gallery.innerHTML = '';
+  loadedImagesMap.clear();
+  currentGalleryList = [];
+
+  // Sort shot numbers in ascending order
+  const count = match.endNum - match.startNum + 1;
+  const sortedNumbers = Array.from({ length: count }, (_, i) => match.startNum + i).sort((a, b) => a - b);
+
+  currentGalleryList = sortedNumbers.map(photoNum => {
+    const filename = `${FILE_PREFIX}${photoNum}.${FILE_EXTENSION}`;
+    const fullUrl = `${IMAGE_FOLDER}/${filename}`;
+    return { filename, fullUrl, photoNum };
+  });
+
+  const fragment = document.createDocumentFragment();
+
+  currentGalleryList.forEach((item, index) => {
+    const isTopRow = index < 6;
+    const cardElement = createPhotoCard(item.filename, item.fullUrl, item.photoNum, isTopRow);
+    
+    fragment.appendChild(cardElement);
+    loadedImagesMap.set(item.filename, cardElement);
+  });
+
+  gallery.appendChild(fragment);
+  filterGallery();
+
+  if (syncStatus) {
+    syncStatus.textContent = `Sync Active (${currentGalleryList.length} Photos Loaded)`;
+  }
 }
 
 // ==========================================
-// 1. LIVE SEARCH & FILTER ENGINE
+// 2. SEARCH & FILTER ENGINE
 // ==========================================
 function filterGallery() {
   const searchTerm = gameTitleInput ? gameTitleInput.value.toLowerCase().trim() : "";
 
   filteredGalleryList = currentGalleryList.filter(item => {
-    const photoNumMatch = item.photoNum.toString().includes(searchTerm);
-    return searchTerm === "" || photoNumMatch;
+    return searchTerm === "" || item.photoNum.toString().includes(searchTerm);
   });
 
   loadedImagesMap.forEach((cardElement, filename) => {
@@ -61,16 +131,11 @@ function filterGallery() {
   }
 }
 
-if (gameTitleInput) {
-  gameTitleInput.addEventListener('input', filterGallery);
-}
-
-if (updateTitleBtn) {
-  updateTitleBtn.addEventListener('click', filterGallery);
-}
+if (gameTitleInput) gameTitleInput.addEventListener('input', filterGallery);
+if (updateTitleBtn) updateTitleBtn.addEventListener('click', filterGallery);
 
 // ==========================================
-// 2. CARD DOM CREATION (CLEAN GRID)
+// 3. CARD DOM CREATION
 // ==========================================
 function createPhotoCard(filename, fullUrl, photoNum, isTopRow) {
   const card = document.createElement('div');
@@ -81,10 +146,7 @@ function createPhotoCard(filename, fullUrl, photoNum, isTopRow) {
 
   card.innerHTML = `
     <div class="image-wrapper">
-      <img src="${fullUrl}" 
-           loading="${loadingAttr}" 
-           decoding="async" 
-           alt="Soccer match photo" />
+      <img src="${fullUrl}" loading="${loadingAttr}" decoding="async" alt="${currentMatch.title} Shot ${photoNum}" />
     </div>
   `;
 
@@ -102,38 +164,6 @@ function createPhotoCard(filename, fullUrl, photoNum, isTopRow) {
   });
 
   return card;
-}
-
-// ==========================================
-// 3. INSTANT GALLERY BUILDER
-// ==========================================
-function buildGalleryInstantly() {
-  if (emptyState && gallery.contains(emptyState)) {
-    emptyState.remove();
-  }
-
-  const fragment = document.createDocumentFragment();
-
-  currentGalleryList = SHOT_NUMBERS.map(photoNum => {
-    const filename = `${FILE_PREFIX}${photoNum}.${FILE_EXTENSION}`;
-    const fullUrl = `${IMAGE_FOLDER}/${filename}`;
-    return { filename, fullUrl, photoNum };
-  });
-
-  currentGalleryList.forEach((item, index) => {
-    const isTopRow = index < 6;
-    const cardElement = createPhotoCard(item.filename, item.fullUrl, item.photoNum, isTopRow);
-    
-    fragment.appendChild(cardElement);
-    loadedImagesMap.set(item.filename, cardElement);
-  });
-
-  gallery.appendChild(fragment);
-  filterGallery();
-
-  if (syncStatus) {
-    syncStatus.textContent = `Sync Active (${currentGalleryList.length} Photos Live)`;
-  }
 }
 
 // ==========================================
@@ -179,8 +209,9 @@ function updateLightboxContent() {
     }
   });
 
+  // DYNAMIC LIGHTBOX TITLE UPDATE
   if (lightboxCaption) {
-    lightboxCaption.textContent = `Shot #${filteredGalleryList[activeIndex].photoNum} (${activeIndex + 1} of ${total})`;
+    lightboxCaption.textContent = `${currentMatch.title} — Shot #${filteredGalleryList[activeIndex].photoNum} (${activeIndex + 1} of ${total})`;
   }
 }
 
@@ -213,4 +244,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowRight') showNextPhoto();
 });
 
-document.addEventListener("DOMContentLoaded", buildGalleryInstantly);
+document.addEventListener("DOMContentLoaded", () => {
+  initializeMatchDropdown();
+  loadMatchPhotos(MATCH_DATA[0]);
+});

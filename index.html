@@ -21,9 +21,12 @@
   <!-- MAIN CONTENT AREA -->
   <main class="main-content">
     
-    <!-- SEARCH BAR -->
+    <!-- TOP BAR SEARCH & MATCH SELECTOR -->
     <div class="top-bar">
       <div class="game-control-panel">
+        <select id="match-select" class="match-dropdown" aria-label="Select Game Match">
+          <!-- Populated dynamically from script.js MATCH_DATA -->
+        </select>
         <div class="input-group">
           <input type="text" id="game-title-input" placeholder="Search photo number..." />
           <button id="update-title-btn">Search</button>
