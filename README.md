@@ -12,7 +12,7 @@ sips -Z 1600 --setProperty formatOptions 75 images/*.JPG
 
 
 
-**2. Update `MATCH_DATA` in `script.js**`
+2. Update `MATCH_DATA` in `script.js**`
 Open `script.js` and add a new entry to the `MATCH_DATA` array containing the title and shot range for the new game:
 
 ```javascript
