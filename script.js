@@ -16,14 +16,21 @@ const MATCH_DATA = [
     id: 'jhs-jamboree',
     title: 'JHS Soccer Jamboree',
     startNum: 7332,
-    endNum: 7481
+    endNum: 7474
   },
   {
-    id: 'reeds-spring',
+    id: 'Monett-vs-Hillcrest',
     title: 'Monett vs Hillcrest',
     startNum: 7476,
     endNum: 7514
+  },
+    {
+    id: 'Monett-vs-Boliver',
+    title: 'Monett vs Boliver',
+    startNum: 7516,
+    endNum: 7667
   }
+
 ];
 
 // --- DOM REFERENCES ---
