@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RPhotography - Monett Soccer Gallery</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- SIDEBAR NAVIGATION -->
+  <aside class="sidebar">
+    <div class="brand-logo">R</div>
+    <nav>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="gallery.html" class="active">Gallery</a></li>
+      </ul>
+    </nav>
+  </aside>
+
+  <!-- MAIN CONTENT AREA -->
+  <main class="main-content">
+    
+    <!-- TOP BAR SEARCH & MATCH SELECTOR -->
+    <div class="top-bar">
+      <div class="game-control-panel">
+        <select id="match-select" class="match-dropdown" aria-label="Select Game Match">
+          <!-- Populated dynamically from gallery.js MATCH_DATA -->
+        </select>
+        <div class="input-group">
+          <input type="text" id="game-title-input" placeholder="Search photo number..." />
+          <button id="update-title-btn">Search</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATUS & SECTION HEADER -->
+    <div class="status-bar">
+      <span class="status-dot"></span>
+      <span id="sync-status">Scanning for images...</span>
+    </div>
+
+    <section class="game-section">
+      <div class="section-header">
+        <h2 id="display-game-title">Select a Match</h2>
+        <span class="game-badge" id="photo-count-badge">0 Photos</span>
+      </div>
+
+      <!-- MASONRY GALLERY GRID -->
+      <div class="gallery-grid" id="gallery">
+        <div class="empty-state" id="empty-state">
+          Loading match photos...
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- TRANSPARENT CAROUSEL LIGHTBOX POP-UP -->
+  <div class="lightbox" id="lightbox">
+    <div class="lightbox-modal">
+      <button class="lightbox-close" id="lightbox-close" aria-label="Close Lightbox">&times;</button>
+      
+      <div class="lightbox-header">
+        <span class="lightbox-subtitle">RPHOTOGRAPHY</span>
+        <h3 class="lightbox-title" id="lightbox-caption">Match Photo Preview</h3>
+      </div>
+
+      <div class="carousel-stage">
+        <div class="carousel-card card-far-left" id="card-far-left"><img src="" alt="" /></div>
+        <div class="carousel-card card-left" id="card-left"><img src="" alt="" /></div>
+        <div class="carousel-card card-center" id="card-center"><img src="" alt="" /></div>
+        <div class="carousel-card card-right" id="card-right"><img src="" alt="" /></div>
+        <div class="carousel-card card-far-right" id="card-far-right"><img src="" alt="" /></div>
+      </div>
+
+      <div class="carousel-controls">
+        <button id="lightbox-prev" aria-label="Previous Photo">&#8592;</button>
+        <button id="lightbox-next" aria-label="Next Photo">&#8594;</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="gallery.js"></script>
+</body>
+</html>

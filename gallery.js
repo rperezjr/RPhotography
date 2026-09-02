@@ -1,6 +1,6 @@
 /**
  * RPhotography - Monett Soccer Gallery Engine
- * Automatic Dropdown Population & Match Title Sync Script
+ * Automatic Dropdown Population, Sequence Probing, & 3D Carousel Modal
  */
 
 // --- CONFIGURATION ---
@@ -9,8 +9,6 @@ const FILE_PREFIX = '_WAC';
 const FILE_EXTENSION = 'JPG';
 
 // --- MATCHES MANIFEST ---
-// Set startNum to your first shot and endNum to your last shot off the camera.
-// Missing/deleted numbers inside the range will be skipped automatically!
 const MATCH_DATA = [
   {
     id: 'jhs-jamboree',
@@ -24,19 +22,17 @@ const MATCH_DATA = [
     startNum: 7476,
     endNum: 7514
   },
-    {
+  {
     id: 'Monett-vs-Boliver',
     title: 'Monett vs Boliver',
     startNum: 7516,
     endNum: 7667
   }
-
 ];
 
 // --- DOM REFERENCES ---
 const gallery = document.getElementById('gallery');
 const syncStatus = document.getElementById('sync-status');
-const emptyState = document.getElementById('empty-state');
 const matchSelect = document.getElementById('match-select');
 const gameTitleInput = document.getElementById('game-title-input');
 const updateTitleBtn = document.getElementById('update-title-btn');
@@ -57,9 +53,15 @@ let currentGalleryList = [];
 let filteredGalleryList = [];
 let activeIndex = 0;
 
-// ==========================================
-// 1. DYNAMIC DROPDOWN & MATCH SWITCHER
-// ==========================================
+// Resolve initial match from URL query (?match=...) or default to the first
+function resolveInitialMatch() {
+  const params = new URLSearchParams(window.location.search);
+  const matchId = params.get('match');
+  const found = MATCH_DATA.find(m => m.id === matchId);
+  return found || MATCH_DATA[0];
+}
+
+// 1. DYNAMIC DROPDOWN INITIALIZATION
 function initializeMatchDropdown() {
   if (!matchSelect) return;
   
@@ -68,15 +70,22 @@ function initializeMatchDropdown() {
     const opt = document.createElement('option');
     opt.value = match.id;
     opt.textContent = match.title;
+    if (match.id === currentMatch.id) {
+      opt.selected = true;
+    }
     matchSelect.appendChild(opt);
   });
 
   matchSelect.addEventListener('change', (e) => {
     const selected = MATCH_DATA.find(m => m.id === e.target.value);
-    if (selected) loadMatchPhotos(selected);
+    if (selected) {
+      window.history.replaceState({}, '', `gallery.html?match=${encodeURIComponent(selected.id)}`);
+      loadMatchPhotos(selected);
+    }
   });
 }
 
+// 2. IMAGE PROBING & GRID POPULATION
 function loadMatchPhotos(match) {
   currentMatch = match;
   
@@ -84,13 +93,20 @@ function loadMatchPhotos(match) {
     displayGameTitle.textContent = currentMatch.title;
   }
   
-  gallery.innerHTML = '';
+  if (matchSelect) {
+    matchSelect.value = currentMatch.id;
+  }
+  
+  gallery.innerHTML = '<div class="empty-state" id="empty-state">Loading match photos...</div>';
   loadedImagesMap.clear();
   currentGalleryList = [];
+  filteredGalleryList = [];
 
-  // Generate sequence range between startNum and endNum
+  if (photoCountBadge) photoCountBadge.textContent = '0 Photos';
+  if (syncStatus) syncStatus.textContent = `Scanning ${match.title}...`;
+
   const count = match.endNum - match.startNum + 1;
-  const sortedNumbers = Array.from({ length: count }, (_, i) => match.startNum + i).sort((a, b) => a - b);
+  const sortedNumbers = Array.from({ length: count }, (_, i) => match.startNum + i);
 
   const potentialList = sortedNumbers.map(photoNum => {
     const filename = `${FILE_PREFIX}${photoNum}.${FILE_EXTENSION}`;
@@ -98,15 +114,17 @@ function loadMatchPhotos(match) {
     return { filename, fullUrl, photoNum };
   });
 
-  // Probe each photo in range and only add existing files
+  let verifiedCount = 0;
+
   potentialList.forEach((item) => {
     const testerImg = new Image();
 
     testerImg.onload = () => {
-      // Photo exists on server: add to gallery list
+      if (currentGalleryList.length === 0) {
+        gallery.innerHTML = '';
+      }
+
       currentGalleryList.push(item);
-      
-      // Keep gallery list sorted by shot number
       currentGalleryList.sort((a, b) => a.photoNum - b.photoNum);
 
       const isTopRow = currentGalleryList.length <= 6;
@@ -114,7 +132,6 @@ function loadMatchPhotos(match) {
 
       loadedImagesMap.set(item.filename, cardElement);
       
-      // Insert in sorted numerical order in the DOM
       const existingCards = Array.from(gallery.children);
       const insertBeforeCard = existingCards.find(card => {
         const num = parseInt(card.dataset.photoNum, 10);
@@ -127,29 +144,25 @@ function loadMatchPhotos(match) {
         gallery.appendChild(cardElement);
       }
 
-      // Update filtered list & badge automatically
+      verifiedCount++;
       filterGallery();
 
       if (syncStatus) {
-        syncStatus.textContent = `Sync Active (${currentGalleryList.length} Photos Loaded)`;
+        syncStatus.textContent = `Sync Active (${verifiedCount} Photos Loaded)`;
       }
     };
 
-    // Missing/deleted numbers fail quietly without inflating the photo count
     testerImg.onerror = () => {};
-
     testerImg.src = item.fullUrl;
   });
 }
 
-// ==========================================
-// 2. SEARCH & FILTER ENGINE
-// ==========================================
+// 3. SEARCH BY SHOT NUMBER
 function filterGallery() {
-  const searchTerm = gameTitleInput ? gameTitleInput.value.toLowerCase().trim() : "";
+  const searchTerm = gameTitleInput ? gameTitleInput.value.toLowerCase().trim() : '';
 
   filteredGalleryList = currentGalleryList.filter(item => {
-    return searchTerm === "" || item.photoNum.toString().includes(searchTerm);
+    return searchTerm === '' || item.photoNum.toString().includes(searchTerm);
   });
 
   loadedImagesMap.forEach((cardElement, filename) => {
@@ -165,9 +178,7 @@ function filterGallery() {
 if (gameTitleInput) gameTitleInput.addEventListener('input', filterGallery);
 if (updateTitleBtn) updateTitleBtn.addEventListener('click', filterGallery);
 
-// ==========================================
-// 3. CARD DOM CREATION
-// ==========================================
+// 4. CARD CREATION
 function createPhotoCard(filename, fullUrl, photoNum, isTopRow) {
   const card = document.createElement('div');
   card.className = 'photo-card';
@@ -177,9 +188,7 @@ function createPhotoCard(filename, fullUrl, photoNum, isTopRow) {
   const loadingAttr = isTopRow ? 'eager' : 'lazy';
 
   card.innerHTML = `
-    <div class="image-wrapper">
-      <img src="${fullUrl}" loading="${loadingAttr}" decoding="async" alt="${currentMatch.title} Shot ${photoNum}" />
-    </div>
+    <img src="${fullUrl}" loading="${loadingAttr}" decoding="async" alt="${currentMatch.title} Shot ${photoNum}" />
   `;
 
   card.addEventListener('click', () => {
@@ -190,9 +199,7 @@ function createPhotoCard(filename, fullUrl, photoNum, isTopRow) {
   return card;
 }
 
-// ==========================================
-// 4. CAROUSEL POP-UP MODAL CONTROLS
-// ==========================================
+// 5. CAROUSEL POP-UP MODAL CONTROLS
 function openLightbox(index) {
   activeIndex = index;
   updateLightboxContent();
@@ -233,7 +240,6 @@ function updateLightboxContent() {
     }
   });
 
-  // DYNAMIC LIGHTBOX TITLE UPDATE
   if (lightboxCaption) {
     lightboxCaption.textContent = `${currentMatch.title} — Shot #${filteredGalleryList[activeIndex].photoNum} (${activeIndex + 1} of ${total})`;
   }
@@ -268,7 +274,9 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowRight') showNextPhoto();
 });
 
-document.addEventListener("DOMContentLoaded", () => {
+// INITIALIZE
+document.addEventListener('DOMContentLoaded', () => {
+  currentMatch = resolveInitialMatch();
   initializeMatchDropdown();
-  loadMatchPhotos(MATCH_DATA[0]);
+  loadMatchPhotos(currentMatch);
 });
