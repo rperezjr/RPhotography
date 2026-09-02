@@ -40,7 +40,7 @@ Push your new images and updated `script.js` file using your terminal:
 
 ```bash
 git add images/ script.js
-git commit -m "Add Match 2 photos and update match manifest"
+git commit -m "Add Match " " photos and update match manifest"
 git push origin main
 
 ```
