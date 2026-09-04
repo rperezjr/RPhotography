@@ -27,6 +27,12 @@ const MATCH_DATA = [
     title: 'Monett vs Boliver',
     startNum: 7516,
     endNum: 7667
+  },
+  {
+    id: 'Monett-vs-Nixa',
+    title: 'Monett vs Nixa',
+    startNum: 7670,
+    endNum: 7831
   }
 ];
 
