@@ -1,6 +1,6 @@
 /**
  * RPhotography - Home Page Controller
- * Displays match cards with dynamic cover previews linking to gallery.html?match={id}
+ * Displays match cards with dynamic cover previews & auto-probed exact photo counts
  */
 
 const IMAGE_FOLDER = 'images';
@@ -34,6 +34,32 @@ const MATCH_DATA = [
   }
 ];
 
+// Helper: Probes images using the same Image() method as script.js
+function probeMatchPhotoCount(match, countBadgeEl) {
+  let verifiedCount = 0;
+  let checksRemaining = match.endNum - match.startNum + 1;
+
+  for (let photoNum = match.startNum; photoNum <= match.endNum; photoNum++) {
+    const testerImg = new Image();
+    const url = `${IMAGE_FOLDER}/${FILE_PREFIX}${photoNum}.${FILE_EXTENSION}`;
+
+    testerImg.onload = () => {
+      verifiedCount++;
+      countBadgeEl.textContent = `${verifiedCount} Photos →`;
+      checksRemaining--;
+    };
+
+    testerImg.onerror = () => {
+      checksRemaining--;
+      if (checksRemaining === 0 && verifiedCount === 0) {
+        countBadgeEl.textContent = '0 Photos →';
+      }
+    };
+
+    testerImg.src = url;
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const container = document.getElementById('home-match-cards');
   if (!container) return;
@@ -41,7 +67,6 @@ document.addEventListener('DOMContentLoaded', () => {
   container.innerHTML = '';
 
   MATCH_DATA.forEach(match => {
-    const totalPossible = match.endNum - match.startNum + 1;
     const coverUrl = `${IMAGE_FOLDER}/${FILE_PREFIX}${match.startNum}.${FILE_EXTENSION}`;
 
     const card = document.createElement('a');
@@ -54,10 +79,14 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
       <div class="match-card-body">
         <div class="match-card-title">${match.title}</div>
-        <div class="match-card-meta">Up to ${totalPossible} Photos &rarr;</div>
+        <div class="match-card-meta" id="count-${match.id}">Scanning...</div>
       </div>
     `;
 
     container.appendChild(card);
+
+    // Auto-probe and update count for this match
+    const countBadgeEl = card.querySelector(`#count-${match.id}`);
+    probeMatchPhotoCount(match, countBadgeEl);
   });
 });

@@ -336,7 +336,7 @@ body {
   display: none;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 9999;
   padding: 30px;
 }
 
@@ -355,25 +355,42 @@ body {
   align-items: center;
 }
 
+/* HIGH-VISIBILITY FLOATING CLOSE BUTTON */
 .lightbox-close {
-  position: absolute;
-  top: -55px;
-  right: 15px;
-  background: none;
-  border: none;
-  font-size: 2.5rem;
-  color: #8a8a93;
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(30, 30, 35, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  font-size: 2rem;
+  line-height: 1;
+  color: #ffffff;
   cursor: pointer;
-  transition: color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+  transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .lightbox-close:hover {
+  background-color: #e63946;
+  border-color: #e63946;
   color: #ffffff;
+  transform: scale(1.08);
+}
+
+.lightbox-close:active {
+  transform: scale(0.92);
 }
 
 .lightbox-header {
   text-align: center;
-  margin-bottom: 25px;
+  margin-bottom: 20px;
 }
 
 .lightbox-subtitle {
@@ -394,7 +411,7 @@ body {
 .carousel-stage {
   position: relative;
   width: 100%;
-  height: 640px;
+  height: 600px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -421,7 +438,7 @@ body {
 /* EXPANDED CAROUSEL CARD POSITIONS */
 .card-center {
   width: 480px;
-  height: 600px;
+  height: 580px;
   z-index: 5;
   transform: translateX(0) scale(1);
 }
@@ -462,37 +479,54 @@ body {
   filter: brightness(0.5);
 }
 
-/* CAROUSEL CONTROLS */
+/* DESKTOP CAROUSEL CONTROLS (SIDES) */
 .carousel-controls {
-  display: flex;
-  gap: 18px;
-  margin-top: 30px;
+  position: static;
 }
 
 .carousel-controls button {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  border: 1px solid #26262b;
-  background: #1a1a1e;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(26, 26, 30, 0.85);
+  backdrop-filter: blur(8px);
   color: #ffffff;
-  font-size: 1.3rem;
+  font-size: 1.4rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  z-index: 10001;
+  transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+}
+
+#lightbox-prev {
+  left: 24px;
+}
+
+#lightbox-next {
+  right: 24px;
 }
 
 .carousel-controls button:hover {
   background: #ffffff;
   color: #121214;
   border-color: #ffffff;
+  transform: translateY(-50%) scale(1.08);
+}
+
+.carousel-controls button:active {
+  transform: translateY(-50%) scale(0.94);
 }
 
 /* MULTI-SCREEN BREAKPOINTS */
 @media (max-width: 1300px) {
-  .carousel-stage { height: 540px; }
+  .carousel-stage { height: 520px; }
   .card-center { width: 400px; height: 500px; }
   .card-left { transform: translateX(-280px) scale(0.9); width: 310px; height: 400px; }
   .card-right { transform: translateX(280px) scale(0.9); width: 310px; height: 400px; }
@@ -535,6 +569,46 @@ body {
   .carousel-stage { height: 440px; }
   .card-center { width: 320px; height: 410px; }
   .card-left, .card-right { display: none; }
+
+  .lightbox-close {
+    top: 16px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+    font-size: 1.8rem;
+  }
+
+  /* RESET BUTTONS BACK TO ORIGINAL CENTERED POSITION FOR PHONES/TABLETS */
+  .carousel-controls {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    gap: 18px;
+    margin-top: 20px;
+    z-index: 10;
+  }
+
+  .carousel-controls button {
+    position: static;
+    transform: none;
+    width: 50px;
+    height: 50px;
+    font-size: 1.2rem;
+  }
+
+  .carousel-controls button:hover {
+    transform: scale(1.06);
+  }
+
+  .carousel-controls button:active {
+    transform: scale(0.95);
+  }
+
+  #lightbox-prev,
+  #lightbox-next {
+    left: auto;
+    right: auto;
+  }
 }
 
 @media (max-width: 600px) {
@@ -542,4 +616,5 @@ body {
   .match-cards-grid { grid-template-columns: 1fr; }
   .carousel-stage { height: 380px; }
   .card-center { width: 100%; max-width: 320px; height: 360px; }
+  .carousel-controls { margin-top: 16px; }
 }
