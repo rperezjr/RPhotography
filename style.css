@@ -415,7 +415,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .carousel-card {
@@ -425,56 +425,59 @@ body {
   box-shadow: 0 25px 50px rgba(0, 0, 0, 0.7);
   border: 1px solid rgba(255, 255, 255, 0.12);
   transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-  background-color: #1a1a1e;
+  background-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .carousel-card img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
 }
 
-/* EXPANDED CAROUSEL CARD POSITIONS */
+/* CAROUSEL POSITIONS (Height locked, max-width constraints) */
 .card-center {
-  width: 480px;
-  height: 580px;
+  height: 560px;
+  max-width: 900px;
   z-index: 5;
   transform: translateX(0) scale(1);
 }
 
 .card-left {
-  width: 370px;
-  height: 480px;
+  height: 460px;
+  max-width: 700px;
   z-index: 4;
-  transform: translateX(-340px) scale(0.9);
+  transform: translateX(-380px) scale(0.9);
   opacity: 0.8;
   filter: brightness(0.7);
 }
 
 .card-right {
-  width: 370px;
-  height: 480px;
+  height: 460px;
+  max-width: 700px;
   z-index: 4;
-  transform: translateX(340px) scale(0.9);
+  transform: translateX(380px) scale(0.9);
   opacity: 0.8;
   filter: brightness(0.7);
 }
 
 .card-far-left {
-  width: 290px;
-  height: 380px;
+  height: 360px;
+  max-width: 550px;
   z-index: 3;
-  transform: translateX(-600px) scale(0.8);
+  transform: translateX(-680px) scale(0.8);
   opacity: 0.4;
   filter: brightness(0.5);
 }
 
 .card-far-right {
-  width: 290px;
-  height: 380px;
+  height: 360px;
+  max-width: 550px;
   z-index: 3;
-  transform: translateX(600px) scale(0.8);
+  transform: translateX(680px) scale(0.8);
   opacity: 0.4;
   filter: brightness(0.5);
 }
@@ -526,10 +529,10 @@ body {
 
 /* MULTI-SCREEN BREAKPOINTS */
 @media (max-width: 1300px) {
-  .carousel-stage { height: 520px; }
-  .card-center { width: 400px; height: 500px; }
-  .card-left { transform: translateX(-280px) scale(0.9); width: 310px; height: 400px; }
-  .card-right { transform: translateX(280px) scale(0.9); width: 310px; height: 400px; }
+  .carousel-stage { height: 500px; }
+  .card-center { height: 480px; max-width: 700px; }
+  .card-left { transform: translateX(-300px) scale(0.9); height: 380px; max-width: 550px; }
+  .card-right { transform: translateX(300px) scale(0.9); height: 380px; max-width: 550px; }
   .card-far-left, .card-far-right { display: none; }
 }
 
@@ -566,8 +569,14 @@ body {
     align-items: stretch;
   }
   .gallery-grid { column-count: 2; }
-  .carousel-stage { height: 440px; }
-  .card-center { width: 320px; height: 410px; }
+  .carousel-stage { height: 420px; }
+  
+  .card-center { 
+    height: 380px; 
+    max-width: 92vw; 
+    width: auto;
+  }
+  
   .card-left, .card-right { display: none; }
 
   .lightbox-close {
@@ -578,7 +587,6 @@ body {
     font-size: 1.8rem;
   }
 
-  /* RESET BUTTONS BACK TO ORIGINAL CENTERED POSITION FOR PHONES/TABLETS */
   .carousel-controls {
     position: relative;
     display: flex;
@@ -614,7 +622,13 @@ body {
 @media (max-width: 600px) {
   .gallery-grid { column-count: 1; }
   .match-cards-grid { grid-template-columns: 1fr; }
-  .carousel-stage { height: 380px; }
-  .card-center { width: 100%; max-width: 320px; height: 360px; }
+  .carousel-stage { height: 360px; }
+  
+  .card-center { 
+    height: 320px; 
+    max-width: 96vw; 
+    width: auto;
+  }
+  
   .carousel-controls { margin-top: 16px; }
 }
