@@ -8,7 +8,7 @@ A lightweight, responsive web gallery built to showcase soccer match photography
 ## 🚀 Live Demo
 
 Visit the live site:  
-👉 **[https://rperezjr.github.io/RPhotography/](https://rperezjr.github.io/RPhotography/)**
+👉 **[Live Gallery](https://rperezjr.github.io/RPhotography/)**
 
 ---
 
@@ -16,11 +16,15 @@ Visit the live site:
 
 ```text
 RPhotography/
-├── images/           # Stored game photos (e.g., _WAC7482.JPG)
-├── index.html        # Main gallery structure & modal markup
-├── styles.css        # Responsive CSS grid, lightbox, and typography
-├── script.js         # Match configuration (MATCH_DATA) & dynamic image loader
-└── README.md         # Documentation & update instructions
+├── .github/workflows/ # GitHub Actions static deployment workflow
+├── images/            # Stored match photos (e.g., _WAC7482.JPG)
+├── .nojekyll          # Disables Jekyll processing for underscore files
+├── gallery.html       # Gallery page view
+├── gallery.js         # Match configuration & dynamic gallery loader
+├── home.js            # Landing page interactions & featured images
+├── index.html         # Main entry page
+├── style.css          # Responsive CSS grid, lightbox, and typography
+└── README.md          # Documentation & workflow guide
 
 ```
 
@@ -28,27 +32,27 @@ RPhotography/
 
 ## ⚡ Workflow: Adding Pictures for a New Game
 
-When adding pictures for a new game, follow these 3 steps to update your site:
+Follow these 3 steps to update your site:
 
 ### 1. Copy and Compress the New Photos
 
-* Move your new camera files into your local project's `images/` folder.
-* Ensure the file names match your naming pattern (e.g., `_WAC7482.JPG`, `_WAC7483.JPG`).
-* Compress the new `.JPG` files using your terminal so your site continues loading fast:
+1. Copy your camera files into the local `images/` directory.
+2. Run this command from the project root to automatically find and compress only large photos (>2MB) without re-compressing previously optimized images:
 
 ```bash
-sips -Z 1600 --setProperty formatOptions 75 images/*.JPG
+find images -type f \( -name "*.JPG" -o -name "*.jpg" \) -size +2M -exec sips -Z 1600 --setProperty formatOptions 75 {} +
 
 ```
 
-* `-Z 1600`: Scales the longest side down to a maximum of 1600px while maintaining the original aspect ratio.
-* `--setProperty formatOptions 75`: Sets JPEG compression quality to 75%, cutting file size significantly without visible degradation.
+* `-Z 1600`: Scales the longest edge down to a maximum of 1600px while maintaining the original aspect ratio.
+* `--setProperty formatOptions 75`: Sets JPEG compression quality to 75% to reduce file payload without visible artifacting.
+* `-size +2M`: Protects previously compressed images from undergoing multiple compression passes.
 
 ---
 
-### 2. Update `MATCH_DATA` in `script.js`
+### 2. Update Match Manifest
 
-Open `script.js` and add a new entry to the `MATCH_DATA` array containing the title and shot range for the new game:
+Open `gallery.js` (or `home.js`) and update your match array with the new game title and shot range:
 
 ```javascript
 const MATCH_DATA = [
@@ -68,22 +72,20 @@ const MATCH_DATA = [
 
 ```
 
-*(Your dropdown menu and section headers will automatically populate and update from this data).*
-
 ---
 
-### 3. Commit and Deploy to GitHub
+### 3. Stage, Commit, and Deploy to GitHub
 
-Push your new images and updated `script.js` file using your terminal:
+Stage your modified files and newly added images, commit, and push:
 
 ```bash
-git add .
+git add -A
 git commit -m "Add new match photos"
 git push origin main
 
 ```
 
-*(GitHub Pages will automatically rebuild and deploy your changes within 1–2 minutes).*
+*(GitHub Pages will trigger an automated build and deploy your updates within 1–2 minutes).*
 
 ---
 
