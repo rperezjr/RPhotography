@@ -1,6 +1,6 @@
 /**
  * RPhotography - Home Page Controller
- * Displays match cards with dynamic cover previews & auto-probed exact photo counts
+ * Displays match cards with dynamic cover previews & manifest-verified photo counts
  */
 
 const IMAGE_FOLDER = 'images';
@@ -32,7 +32,8 @@ const MATCH_DATA = [
     startNum: 7670,
     endNum: 7831
   },
-  { id: 'Monett-vs-Joplin',
+  { 
+    id: 'Monett-vs-Joplin',
     title: 'Monett vs Joplin', 
     startNum: 7837, 
     endNum: 7979 
@@ -57,18 +58,16 @@ const MATCH_DATA = [
   }
 ];
 
-// Helper: Probes images using the manifest instead of downloading every file
+// Helper: Computes exact counts instantly via manifest without downloading files
 function probeMatchPhotoCount(match, countBadgeEl, availableImages) {
   if (availableImages && availableImages.length > 0) {
     const matchFiles = availableImages.filter(file => {
       const num = parseInt(file.replace(/[^0-9]/g, ''), 10);
-      return num >= match.startNum && num <= match.endNum;
+      return !isNaN(num) && num >= match.startNum && num <= match.endNum;
     });
     countBadgeEl.textContent = `${matchFiles.length} Photos →`;
   } else {
-    // Fallback count if manifest.json hasn't been created yet
-    const estimated = match.endNum - match.startNum + 1;
-    countBadgeEl.textContent = `${estimated} Photos →`;
+    countBadgeEl.textContent = '0 Photos →';
   }
 }
 
@@ -78,17 +77,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   container.innerHTML = '';
 
-  // Fast single fetch for existing image names
   let availableImages = [];
   try {
-    const res = await fetch(`${IMAGE_FOLDER}/manifest.json`);
+    const res = await fetch(`${IMAGE_FOLDER}/manifest.json?v=${Date.now()}`);
     if (res.ok) availableImages = await res.json();
   } catch (err) {
-    // Falls back seamlessly if manifest is absent
+    // Falls back gracefully if manifest is absent
   }
 
   MATCH_DATA.forEach(match => {
-    const coverUrl = `${IMAGE_FOLDER}/${FILE_PREFIX}${match.startNum}.${FILE_EXTENSION}`;
+    // Find the first REAL existing image for this match to use as cover preview
+    let coverFileName = `${FILE_PREFIX}${match.startNum}.${FILE_EXTENSION}`;
+    if (availableImages.length > 0) {
+      const matchFiles = availableImages
+        .map(name => ({ name, num: parseInt(name.replace(/[^0-9]/g, ''), 10) }))
+        .filter(item => !isNaN(item.num) && item.num >= match.startNum && item.num <= match.endNum)
+        .sort((a, b) => a.num - b.num);
+
+      if (matchFiles.length > 0) {
+        coverFileName = matchFiles[0].name;
+      }
+    }
+
+    const thumbUrl = `${IMAGE_FOLDER}/thumbs/${coverFileName}`;
+    const originalUrl = `${IMAGE_FOLDER}/${coverFileName}`;
 
     const card = document.createElement('a');
     card.className = 'match-card home-card';
@@ -96,7 +108,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     card.innerHTML = `
       <div class="match-card-thumb">
-        <img src="${coverUrl}" alt="${match.title} Preview" loading="lazy" decoding="async" onerror="this.parentElement.classList.add('thumb-fallback')" />
+        <img 
+          src="${thumbUrl}" 
+          alt="${match.title} Preview" 
+          loading="lazy" 
+          decoding="async" 
+          onerror="if (!this.dataset.triedOriginal) { this.dataset.triedOriginal = 'true'; this.src='${originalUrl}'; } else { this.parentElement.classList.add('thumb-fallback'); }" 
+        />
       </div>
       <div class="match-card-body">
         <div class="match-card-title">${match.title}</div>
@@ -106,7 +124,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     container.appendChild(card);
 
-    // Auto-probe and update count for this match without firing 700+ network downloads
     const countBadgeEl = card.querySelector(`#count-${match.id}`);
     probeMatchPhotoCount(match, countBadgeEl, availableImages);
   });

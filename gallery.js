@@ -1,6 +1,6 @@
 /**
  * RPhotography - Monett Soccer Gallery Engine
- * Automatic Dropdown Population, Manifest-Indexed Loading, & 3D Carousel Modal
+ * Automatic Dropdown Population, Manifest-Strict Filtering, & 3D Carousel Modal
  */
 
 // --- CONFIGURATION ---
@@ -116,7 +116,7 @@ function initializeMatchDropdown() {
   });
 }
 
-// 2. IMAGE PROBING & GRID POPULATION (PERFORMANCE OPTIMIZED)
+// 2. IMAGE PROBING & GRID POPULATION (STRICT REAL FILES ONLY)
 async function loadMatchPhotos(match) {
   currentMatch = match;
   
@@ -136,53 +136,41 @@ async function loadMatchPhotos(match) {
   if (photoCountBadge) photoCountBadge.textContent = '0 Photos';
   if (syncStatus) syncStatus.textContent = `Loading ${match.title}...`;
 
-  // Fetch manifest once to avoid probing 700+ images concurrently
+  // Fetch manifest once to know exactly which images exist on disk
   if (cachedManifest === null) {
     try {
-      const res = await fetch(`${IMAGE_FOLDER}/manifest.json`);
+      const res = await fetch(`${IMAGE_FOLDER}/manifest.json?v=${Date.now()}`);
       if (res.ok) cachedManifest = await res.json();
     } catch (e) {
       cachedManifest = [];
     }
   }
 
-  let potentialList = [];
+  // Filter ONLY files that physically exist in manifest.json within this match number range
+  let matchingFiles = (cachedManifest || []).filter(filename => {
+    const num = parseInt(filename.replace(/[^0-9]/g, ''), 10);
+    return !isNaN(num) && num >= match.startNum && num <= match.endNum;
+  });
 
-  if (cachedManifest && cachedManifest.length > 0) {
-    // Exact list of files that exist within this match range
-    potentialList = cachedManifest
-      .filter(filename => {
-        const num = parseInt(filename.replace(/[^0-9]/g, ''), 10);
-        return num >= match.startNum && num <= match.endNum;
-      })
-      .map(filename => {
-        const photoNum = parseInt(filename.replace(/[^0-9]/g, ''), 10);
-        const fullUrl = `${IMAGE_FOLDER}/${filename}`;
-        const thumbUrl = `${IMAGE_FOLDER}/thumbs/${filename}`;
-        return { filename, fullUrl, thumbUrl, photoNum };
-      })
-      .sort((a, b) => a.photoNum - b.photoNum);
-  } else {
-    // Fallback if manifest is missing
-    const count = match.endNum - match.startNum + 1;
-    potentialList = Array.from({ length: count }, (_, i) => {
-      const photoNum = match.startNum + i;
-      const filename = `${FILE_PREFIX}${photoNum}.${FILE_EXTENSION}`;
-      const fullUrl = `${IMAGE_FOLDER}/${filename}`;
-      const thumbUrl = `${IMAGE_FOLDER}/thumbs/${filename}`;
-      return { filename, fullUrl, thumbUrl, photoNum };
-    });
-  }
-
-  if (potentialList.length === 0) {
+  if (matchingFiles.length === 0) {
     gallery.innerHTML = '<div class="empty-state" id="empty-state">No photos found for this match.</div>';
+    if (syncStatus) syncStatus.textContent = 'No photos available';
     return;
   }
 
-  gallery.innerHTML = '';
-  currentGalleryList = potentialList;
+  // Map into gallery items and sort strictly by photo number
+  currentGalleryList = matchingFiles
+    .map(filename => {
+      const photoNum = parseInt(filename.replace(/[^0-9]/g, ''), 10);
+      const fullUrl = `${IMAGE_FOLDER}/${filename}`;
+      const thumbUrl = `${IMAGE_FOLDER}/thumbs/${filename}`;
+      return { filename, fullUrl, thumbUrl, photoNum };
+    })
+    .sort((a, b) => a.photoNum - b.photoNum);
 
-  // Build grid instantly using lightweight thumbnails and lazy loading
+  gallery.innerHTML = '';
+
+  // Render cards ONLY for files that exist
   currentGalleryList.forEach((item, index) => {
     const isTopRow = index < 6;
     const cardElement = createPhotoCard(item.filename, item.fullUrl, item.thumbUrl, item.photoNum, isTopRow);
@@ -247,7 +235,7 @@ function createPhotoCard(filename, fullUrl, thumbUrl, photoNum, isTopRow) {
   return card;
 }
 
-// 5. CAROUSEL POP-UP MODAL CONTROLS
+// 5. CAROUSEL POP-UP MODAL CONTROLS (OPTIMIZED ASSET ALLOCATION)
 function openLightbox(index) {
   activeIndex = index;
   updateLightboxContent();
@@ -265,31 +253,43 @@ function closeLightbox() {
 }
 
 function updateLightboxContent() {
-  if (filteredGalleryList.length === 0) return;
+  if (!filteredGalleryList || filteredGalleryList.length === 0) return;
 
   const total = filteredGalleryList.length;
   const getIdx = (offset) => (activeIndex + offset + total) % total;
 
+  // Center gets high-res preview; outer slots receive cached thumbnails to load instantaneously
   const slots = [
-    { id: 'card-far-left', index: getIdx(-2) },
-    { id: 'card-left', index: getIdx(-1) },
-    { id: 'card-center', index: getIdx(0) },
-    { id: 'card-right', index: getIdx(1) },
-    { id: 'card-far-right', index: getIdx(2) }
+    { id: 'card-far-left', index: getIdx(-2), isCenter: false },
+    { id: 'card-left',     index: getIdx(-1), isCenter: false },
+    { id: 'card-center',   index: getIdx(0),  isCenter: true  },
+    { id: 'card-right',    index: getIdx(1),  isCenter: false },
+    { id: 'card-far-right',index: getIdx(2),  isCenter: false }
   ];
 
   slots.forEach(slot => {
     const el = document.getElementById(slot.id);
-    if (el) {
-      const img = el.querySelector('img');
-      if (img && filteredGalleryList[slot.index]) {
-        // Lightbox uses the full-res preview
-        img.src = filteredGalleryList[slot.index].fullUrl;
-      }
+    if (!el) return;
+
+    const img = el.querySelector('img');
+    const item = filteredGalleryList[slot.index];
+    if (!img || !item) return;
+
+    const targetUrl = slot.isCenter ? item.fullUrl : (item.thumbUrl || item.fullUrl);
+
+    // Only update if src actually changed to prevent flashing/re-downloads
+    if (img.getAttribute('src') !== targetUrl) {
+      img.src = targetUrl;
     }
+
+    img.onerror = function() {
+      if (this.src !== item.fullUrl) {
+        this.src = item.fullUrl;
+      }
+    };
   });
 
-  if (lightboxCaption) {
+  if (lightboxCaption && filteredGalleryList[activeIndex]) {
     lightboxCaption.textContent = `${currentMatch.title} — Shot #${filteredGalleryList[activeIndex].photoNum} (${activeIndex + 1} of ${total})`;
   }
 }
