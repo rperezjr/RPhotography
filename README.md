@@ -44,15 +44,21 @@ Follow these 3 steps whenever you add a new soccer match:
 2. Open your terminal in the project root and run this single optimization script:
 
 ```bash
-# Compress raw images (>2MB) down to 1600px preview files
+# 1. Compress raw images (>2MB) down to 1600px preview files
 find images -maxdepth 1 -type f \( -name "*.JPG" -o -name "*.jpg" \) -size +2M -exec sips -Z 1600 --setProperty formatOptions 75 {} +
 
-# Generate 450px lightweight thumbnails for gallery grids
-mkdir -p images/thumbs && find images -maxdepth 1 -type f \( -name "*.JPG" -o -name "*.jpg" \) -exec sips -Z 450 --setProperty formatOptions 65 {} --out images/thumbs/ \;
+# 2. Only create thumbnails for photos that do not already have one
+mkdir -p images/thumbs
+for img in images/*.JPG images/*.jpg; do
+  [ -f "$img" ] || continue
+  filename=$(basename "$img")
+  if [ ! -f "images/thumbs/$filename" ]; then
+    sips -Z 450 --setProperty formatOptions 65 "$img" --out "images/thumbs/$filename"
+  fi
+done
 
-# Index existing photos into manifest.json (prevents 404 network waterfalls)
-node -e 'const fs = require("fs"); const f = fs.readdirSync("images").filter(x => /\.(jpe?g)$/i.test(x)); fs.writeFileSync("images/manifest.json", JSON.stringify(f)); console.log("Indexed " + f.length + " images!");'
-
+# 3. Index existing photos into manifest.json using Python (works out of the box on macOS)
+python3 -c 'import os, json; files = sorted([f for f in os.listdir("images") if f.lower().endswith((".jpg", ".jpeg")) and not f.startswith(".")]); open("images/manifest.json", "w").write(json.dumps(files)); print(f"Indexed {len(files)} real photos into manifest.json!")'
 ```
 
 ---
