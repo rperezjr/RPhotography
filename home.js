@@ -51,37 +51,35 @@ const MATCH_DATA = [
   }
 ];
 
-// Helper: Probes images using the same Image() method as script.js
-function probeMatchPhotoCount(match, countBadgeEl) {
-  let verifiedCount = 0;
-  let checksRemaining = match.endNum - match.startNum + 1;
-
-  for (let photoNum = match.startNum; photoNum <= match.endNum; photoNum++) {
-    const testerImg = new Image();
-    const url = `${IMAGE_FOLDER}/${FILE_PREFIX}${photoNum}.${FILE_EXTENSION}`;
-
-    testerImg.onload = () => {
-      verifiedCount++;
-      countBadgeEl.textContent = `${verifiedCount} Photos →`;
-      checksRemaining--;
-    };
-
-    testerImg.onerror = () => {
-      checksRemaining--;
-      if (checksRemaining === 0 && verifiedCount === 0) {
-        countBadgeEl.textContent = '0 Photos →';
-      }
-    };
-
-    testerImg.src = url;
+// Helper: Probes images using the manifest instead of downloading every file
+function probeMatchPhotoCount(match, countBadgeEl, availableImages) {
+  if (availableImages && availableImages.length > 0) {
+    const matchFiles = availableImages.filter(file => {
+      const num = parseInt(file.replace(/[^0-9]/g, ''), 10);
+      return num >= match.startNum && num <= match.endNum;
+    });
+    countBadgeEl.textContent = `${matchFiles.length} Photos →`;
+  } else {
+    // Fallback count if manifest.json hasn't been created yet
+    const estimated = match.endNum - match.startNum + 1;
+    countBadgeEl.textContent = `${estimated} Photos →`;
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const container = document.getElementById('home-match-cards');
   if (!container) return;
 
   container.innerHTML = '';
+
+  // Fast single fetch for existing image names
+  let availableImages = [];
+  try {
+    const res = await fetch(`${IMAGE_FOLDER}/manifest.json`);
+    if (res.ok) availableImages = await res.json();
+  } catch (err) {
+    // Falls back seamlessly if manifest is absent
+  }
 
   MATCH_DATA.forEach(match => {
     const coverUrl = `${IMAGE_FOLDER}/${FILE_PREFIX}${match.startNum}.${FILE_EXTENSION}`;
@@ -92,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     card.innerHTML = `
       <div class="match-card-thumb">
-        <img src="${coverUrl}" alt="${match.title} Preview" loading="lazy" onerror="this.parentElement.classList.add('thumb-fallback')" />
+        <img src="${coverUrl}" alt="${match.title} Preview" loading="lazy" decoding="async" onerror="this.parentElement.classList.add('thumb-fallback')" />
       </div>
       <div class="match-card-body">
         <div class="match-card-title">${match.title}</div>
@@ -102,8 +100,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     container.appendChild(card);
 
-    // Auto-probe and update count for this match
+    // Auto-probe and update count for this match without firing 700+ network downloads
     const countBadgeEl = card.querySelector(`#count-${match.id}`);
-    probeMatchPhotoCount(match, countBadgeEl);
+    probeMatchPhotoCount(match, countBadgeEl, availableImages);
   });
 });

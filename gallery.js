@@ -1,6 +1,6 @@
 /**
  * RPhotography - Monett Soccer Gallery Engine
- * Automatic Dropdown Population, Sequence Probing, & 3D Carousel Modal
+ * Automatic Dropdown Population, Manifest-Indexed Loading, & 3D Carousel Modal
  */
 
 // --- CONFIGURATION ---
@@ -76,6 +76,7 @@ let loadedImagesMap = new Map();
 let currentGalleryList = [];
 let filteredGalleryList = [];
 let activeIndex = 0;
+let cachedManifest = null;
 
 // Resolve initial match from URL query (?match=...) or default to the first
 function resolveInitialMatch() {
@@ -109,8 +110,8 @@ function initializeMatchDropdown() {
   });
 }
 
-// 2. IMAGE PROBING & GRID POPULATION
-function loadMatchPhotos(match) {
+// 2. IMAGE PROBING & GRID POPULATION (PERFORMANCE OPTIMIZED)
+async function loadMatchPhotos(match) {
   currentMatch = match;
   
   if (displayGameTitle) {
@@ -127,58 +128,68 @@ function loadMatchPhotos(match) {
   filteredGalleryList = [];
 
   if (photoCountBadge) photoCountBadge.textContent = '0 Photos';
-  if (syncStatus) syncStatus.textContent = `Scanning ${match.title}...`;
+  if (syncStatus) syncStatus.textContent = `Loading ${match.title}...`;
 
-  const count = match.endNum - match.startNum + 1;
-  const sortedNumbers = Array.from({ length: count }, (_, i) => match.startNum + i);
+  // Fetch manifest once to avoid probing 700+ images concurrently
+  if (cachedManifest === null) {
+    try {
+      const res = await fetch(`${IMAGE_FOLDER}/manifest.json`);
+      if (res.ok) cachedManifest = await res.json();
+    } catch (e) {
+      cachedManifest = [];
+    }
+  }
 
-  const potentialList = sortedNumbers.map(photoNum => {
-    const filename = `${FILE_PREFIX}${photoNum}.${FILE_EXTENSION}`;
-    const fullUrl = `${IMAGE_FOLDER}/${filename}`;
-    return { filename, fullUrl, photoNum };
+  let potentialList = [];
+
+  if (cachedManifest && cachedManifest.length > 0) {
+    // Exact list of files that exist within this match range
+    potentialList = cachedManifest
+      .filter(filename => {
+        const num = parseInt(filename.replace(/[^0-9]/g, ''), 10);
+        return num >= match.startNum && num <= match.endNum;
+      })
+      .map(filename => {
+        const photoNum = parseInt(filename.replace(/[^0-9]/g, ''), 10);
+        const fullUrl = `${IMAGE_FOLDER}/${filename}`;
+        const thumbUrl = `${IMAGE_FOLDER}/thumbs/${filename}`;
+        return { filename, fullUrl, thumbUrl, photoNum };
+      })
+      .sort((a, b) => a.photoNum - b.photoNum);
+  } else {
+    // Fallback if manifest is missing
+    const count = match.endNum - match.startNum + 1;
+    potentialList = Array.from({ length: count }, (_, i) => {
+      const photoNum = match.startNum + i;
+      const filename = `${FILE_PREFIX}${photoNum}.${FILE_EXTENSION}`;
+      const fullUrl = `${IMAGE_FOLDER}/${filename}`;
+      const thumbUrl = `${IMAGE_FOLDER}/thumbs/${filename}`;
+      return { filename, fullUrl, thumbUrl, photoNum };
+    });
+  }
+
+  if (potentialList.length === 0) {
+    gallery.innerHTML = '<div class="empty-state" id="empty-state">No photos found for this match.</div>';
+    return;
+  }
+
+  gallery.innerHTML = '';
+  currentGalleryList = potentialList;
+
+  // Build grid instantly using lightweight thumbnails and lazy loading
+  currentGalleryList.forEach((item, index) => {
+    const isTopRow = index < 6;
+    const cardElement = createPhotoCard(item.filename, item.fullUrl, item.thumbUrl, item.photoNum, isTopRow);
+
+    loadedImagesMap.set(item.filename, cardElement);
+    gallery.appendChild(cardElement);
   });
 
-  let verifiedCount = 0;
+  filterGallery();
 
-  potentialList.forEach((item) => {
-    const testerImg = new Image();
-
-    testerImg.onload = () => {
-      if (currentGalleryList.length === 0) {
-        gallery.innerHTML = '';
-      }
-
-      currentGalleryList.push(item);
-      currentGalleryList.sort((a, b) => a.photoNum - b.photoNum);
-
-      const isTopRow = currentGalleryList.length <= 6;
-      const cardElement = createPhotoCard(item.filename, item.fullUrl, item.photoNum, isTopRow);
-
-      loadedImagesMap.set(item.filename, cardElement);
-      
-      const existingCards = Array.from(gallery.children);
-      const insertBeforeCard = existingCards.find(card => {
-        const num = parseInt(card.dataset.photoNum, 10);
-        return num > item.photoNum;
-      });
-
-      if (insertBeforeCard) {
-        gallery.insertBefore(cardElement, insertBeforeCard);
-      } else {
-        gallery.appendChild(cardElement);
-      }
-
-      verifiedCount++;
-      filterGallery();
-
-      if (syncStatus) {
-        syncStatus.textContent = `Sync Active (${verifiedCount} Photos Loaded)`;
-      }
-    };
-
-    testerImg.onerror = () => {};
-    testerImg.src = item.fullUrl;
-  });
+  if (syncStatus) {
+    syncStatus.textContent = `Sync Active (${currentGalleryList.length} Photos Loaded)`;
+  }
 }
 
 // 3. SEARCH BY SHOT NUMBER
@@ -203,7 +214,7 @@ if (gameTitleInput) gameTitleInput.addEventListener('input', filterGallery);
 if (updateTitleBtn) updateTitleBtn.addEventListener('click', filterGallery);
 
 // 4. CARD CREATION
-function createPhotoCard(filename, fullUrl, photoNum, isTopRow) {
+function createPhotoCard(filename, fullUrl, thumbUrl, photoNum, isTopRow) {
   const card = document.createElement('div');
   card.className = 'photo-card';
   card.dataset.filename = filename;
@@ -211,8 +222,15 @@ function createPhotoCard(filename, fullUrl, photoNum, isTopRow) {
 
   const loadingAttr = isTopRow ? 'eager' : 'lazy';
 
+  // Use thumbnail for grid rendering with fullUrl fallback
   card.innerHTML = `
-    <img src="${fullUrl}" loading="${loadingAttr}" decoding="async" alt="${currentMatch.title} Shot ${photoNum}" />
+    <img 
+      src="${thumbUrl}" 
+      loading="${loadingAttr}" 
+      decoding="async" 
+      alt="${currentMatch.title} Shot ${photoNum}"
+      onerror="if (!this.dataset.fallbackTried) { this.dataset.fallbackTried = 'true'; this.src='${fullUrl}'; } else { this.closest('.photo-card').remove(); }"
+    />
   `;
 
   card.addEventListener('click', () => {
@@ -259,6 +277,7 @@ function updateLightboxContent() {
     if (el) {
       const img = el.querySelector('img');
       if (img && filteredGalleryList[slot.index]) {
+        // Lightbox uses the full-res preview
         img.src = filteredGalleryList[slot.index].fullUrl;
       }
     }
