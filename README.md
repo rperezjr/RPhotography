@@ -50,9 +50,6 @@ find images -maxdepth 1 -type f \( -name "*.JPG" -o -name "*.jpg" \) -size +2M -
 # Generate 450px lightweight thumbnails for gallery grids
 mkdir -p images/thumbs && find images -maxdepth 1 -type f \( -name "*.JPG" -o -name "*.jpg" \) -exec sips -Z 450 --setProperty formatOptions 65 {} --out images/thumbs/ \;
 
-# Index existing photos into manifest.json (prevents 404 network waterfalls)
-node -e 'const fs = require("fs"); const f = fs.readdirSync("images").filter(x => /\.(jpe?g)$/i.test(x)); fs.writeFileSync("images/manifest.json", JSON.stringify(f)); console.log("Indexed " + f.length + " images!");'
-
 ```
 
 ---
