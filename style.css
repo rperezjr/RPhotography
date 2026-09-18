@@ -327,7 +327,7 @@ body {
   text-align: center;
 }
 
-/* TRANSPARENT CAROUSEL LIGHTBOX POP-UP */
+/* CAROUSEL LIGHTBOX POP-UP */
 .lightbox {
   position: fixed;
   inset: 0;
@@ -355,7 +355,6 @@ body {
   align-items: center;
 }
 
-/* HIGH-VISIBILITY FLOATING CLOSE BUTTON */
 .lightbox-close {
   position: fixed;
   top: 24px;
@@ -380,12 +379,7 @@ body {
 .lightbox-close:hover {
   background-color: #e63946;
   border-color: #e63946;
-  color: #ffffff;
   transform: scale(1.08);
-}
-
-.lightbox-close:active {
-  transform: scale(0.92);
 }
 
 .lightbox-header {
@@ -407,7 +401,7 @@ body {
   margin-top: 4px;
 }
 
-/* 3D CAROUSEL STAGE */
+/* 3D CAROUSEL STAGE & HARDWARE ACCELERATION */
 .carousel-stage {
   position: relative;
   width: 100%;
@@ -416,73 +410,81 @@ body {
   align-items: center;
   justify-content: center;
   overflow: visible;
+  perspective: 1200px;
 }
 
+/* Seamless, transparent card without gray borders */
 .carousel-card {
   position: absolute;
+  width: auto;
+  height: 520px;
   border-radius: 14px;
-  overflow: hidden;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-  background-color: transparent;
+  overflow: visible;
+  background: transparent;
+  border: none;
+  box-shadow: none;
   display: flex;
   align-items: center;
   justify-content: center;
+  pointer-events: none;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.35s ease, filter 0.35s ease;
 }
 
+/* Image contour shadow only */
 .carousel-card img {
-  width: 100%;
+  width: auto;
   height: 100%;
+  max-width: 80vw;
+  max-height: 520px;
   object-fit: contain;
   display: block;
+  border-radius: 10px;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.75);
+  transform: translateZ(0);
 }
 
-/* CAROUSEL POSITIONS (Height locked, max-width constraints) */
-.card-center {
-  height: 560px;
-  max-width: 900px;
+/* Fixed geometry slots */
+#card-far-left {
+  transform: translate3d(-580px, 0, -250px) scale(0.7);
+  opacity: 0.35;
+  filter: brightness(0.4);
+  z-index: 2;
+}
+
+#card-left {
+  transform: translate3d(-340px, 0, -120px) scale(0.85);
+  opacity: 0.75;
+  filter: brightness(0.65);
+  z-index: 3;
+}
+
+#card-center {
+  transform: translate3d(0, 0, 0) scale(1);
+  opacity: 1;
+  filter: brightness(1);
   z-index: 5;
-  transform: translateX(0) scale(1);
+  pointer-events: auto;
 }
 
-.card-left {
-  height: 460px;
-  max-width: 700px;
-  z-index: 4;
-  transform: translateX(-380px) scale(0.9);
-  opacity: 0.8;
-  filter: brightness(0.7);
-}
-
-.card-right {
-  height: 460px;
-  max-width: 700px;
-  z-index: 4;
-  transform: translateX(380px) scale(0.9);
-  opacity: 0.8;
-  filter: brightness(0.7);
-}
-
-.card-far-left {
-  height: 360px;
-  max-width: 550px;
+#card-right {
+  transform: translate3d(340px, 0, -120px) scale(0.85);
+  opacity: 0.75;
+  filter: brightness(0.65);
   z-index: 3;
-  transform: translateX(-680px) scale(0.8);
-  opacity: 0.4;
-  filter: brightness(0.5);
 }
 
-.card-far-right {
-  height: 360px;
-  max-width: 550px;
-  z-index: 3;
-  transform: translateX(680px) scale(0.8);
-  opacity: 0.4;
-  filter: brightness(0.5);
+#card-far-right {
+  transform: translate3d(580px, 0, -250px) scale(0.7);
+  opacity: 0.35;
+  filter: brightness(0.4);
+  z-index: 2;
 }
 
-/* DESKTOP CAROUSEL CONTROLS (SIDES) */
+/* DESKTOP CONTROLS */
 .carousel-controls {
   position: static;
 }
@@ -505,41 +507,30 @@ body {
   justify-content: center;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
   z-index: 10001;
-  transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+  transition: transform 0.2s ease, background-color 0.2s ease;
 }
 
-#lightbox-prev {
-  left: 24px;
-}
-
-#lightbox-next {
-  right: 24px;
-}
+#lightbox-prev { left: 24px; }
+#lightbox-next { right: 24px; }
 
 .carousel-controls button:hover {
   background: #ffffff;
   color: #121214;
-  border-color: #ffffff;
   transform: translateY(-50%) scale(1.08);
 }
 
-.carousel-controls button:active {
-  transform: translateY(-50%) scale(0.94);
-}
-
-/* MULTI-SCREEN BREAKPOINTS */
+/* RESPONSIVE BREAKPOINTS */
 @media (max-width: 1300px) {
-  .carousel-stage { height: 500px; }
-  .card-center { height: 480px; max-width: 700px; }
-  .card-left { transform: translateX(-300px) scale(0.9); height: 380px; max-width: 550px; }
-  .card-right { transform: translateX(300px) scale(0.9); height: 380px; max-width: 550px; }
-  .card-far-left, .card-far-right { display: none; }
+  .carousel-stage { height: 480px; }
+  .carousel-card { height: 420px; width: auto; }
+  .carousel-card img { max-height: 420px; }
+  #card-left { transform: translate3d(-260px, 0, -100px) scale(0.82); }
+  #card-right { transform: translate3d(260px, 0, -100px) scale(0.82); }
+  #card-far-left, #card-far-right { display: none; }
 }
 
 @media (max-width: 900px) {
-  body {
-    flex-direction: column;
-  }
+  body { flex-direction: column; }
   .sidebar {
     width: 100%;
     height: auto;
@@ -547,37 +538,34 @@ body {
     padding: 16px 24px;
     flex-direction: row;
     align-items: center;
-    justify-content: flex-start;
     gap: 24px;
-    margin-bottom: 0;
   }
-  .brand-logo {
-    margin-bottom: 0;
-    flex-shrink: 0;
-  }
-  .nav-links {
-    flex-direction: row;
-    gap: 16px;
-  }
-  .main-content {
-    margin-left: 0;
-    width: 100%;
-    padding: 20px;
-  }
-  .game-control-panel {
-    flex-direction: column;
-    align-items: stretch;
-  }
+  .brand-logo { margin-bottom: 0; }
+  .nav-links { flex-direction: row; gap: 16px; }
+  .main-content { margin-left: 0; width: 100%; padding: 20px; }
+  .game-control-panel { flex-direction: column; align-items: stretch; }
   .gallery-grid { column-count: 2; }
-  .carousel-stage { height: 420px; }
   
-  .card-center { 
-    height: 380px; 
-    max-width: 92vw; 
+  /* Fixed stage dimensions prevent reflow bounce */
+  .carousel-stage {
+    height: 60vh;
+    min-height: 380px;
+    max-height: 500px;
+  }
+  
+  .carousel-card { 
+    height: 100%; 
     width: auto;
   }
+
+  .carousel-card img {
+    max-height: 100%;
+    max-width: 90vw;
+  }
   
-  .card-left, .card-right { display: none; }
+  #card-left, #card-right, #card-far-left, #card-far-right { 
+    display: none; 
+  }
 
   .lightbox-close {
     top: 16px;
@@ -587,33 +575,41 @@ body {
     font-size: 1.8rem;
   }
 
+  /* Fixed viewport docking: removes arrow jumping across aspect ratios */
   .carousel-controls {
-    position: relative;
+    position: fixed;
+    bottom: 24px;
+    left: 0;
+    right: 0;
     display: flex;
     justify-content: center;
-    gap: 18px;
-    margin-top: 20px;
-    z-index: 10;
+    align-items: center;
+    gap: 28px;
+    z-index: 10001;
+    pointer-events: none;
   }
 
   .carousel-controls button {
     position: static;
     transform: none;
-    width: 50px;
-    height: 50px;
-    font-size: 1.2rem;
+    width: 48px;
+    height: 48px;
+    font-size: 1.25rem;
+    pointer-events: auto;
+    background: rgba(30, 30, 35, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
   }
 
   .carousel-controls button:hover {
-    transform: scale(1.06);
+    transform: scale(1.05);
   }
 
   .carousel-controls button:active {
-    transform: scale(0.95);
+    transform: scale(0.92);
   }
 
-  #lightbox-prev,
-  #lightbox-next {
+  #lightbox-prev, #lightbox-next {
     left: auto;
     right: auto;
   }
@@ -622,13 +618,23 @@ body {
 @media (max-width: 600px) {
   .gallery-grid { column-count: 1; }
   .match-cards-grid { grid-template-columns: 1fr; }
-  .carousel-stage { height: 360px; }
   
-  .card-center { 
-    height: 320px; 
-    max-width: 96vw; 
-    width: auto;
+  .carousel-stage { 
+    height: 55vh; 
+    min-height: 320px;
+    max-height: 420px;
   }
   
-  .carousel-controls { margin-top: 16px; }
+  .carousel-card { height: 100%; width: auto; }
+  .carousel-card img { max-height: 100%; max-width: 92vw; }
+
+  .carousel-controls {
+    bottom: 18px;
+    gap: 20px;
+  }
+
+  .carousel-controls button {
+    width: 44px;
+    height: 44px;
+  }
 }

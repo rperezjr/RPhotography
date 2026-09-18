@@ -1,6 +1,6 @@
 /**
  * RPhotography - Monett Soccer Gallery Engine
- * Automatic Dropdown Population, Manifest-Strict Filtering, & 3D Carousel Modal
+ * High-Performance Smooth Carousel Engine
  */
 
 // --- CONFIGURATION ---
@@ -83,8 +83,9 @@ let currentGalleryList = [];
 let filteredGalleryList = [];
 let activeIndex = 0;
 let cachedManifest = null;
+let lightboxSlots = [];
+const preloadedCache = new Set();
 
-// Resolve initial match from URL query (?match=...) or default to the first
 function resolveInitialMatch() {
   const params = new URLSearchParams(window.location.search);
   const matchId = params.get('match');
@@ -92,7 +93,7 @@ function resolveInitialMatch() {
   return found || MATCH_DATA[0];
 }
 
-// 1. DYNAMIC DROPDOWN INITIALIZATION
+// 1. DYNAMIC DROPDOWN
 function initializeMatchDropdown() {
   if (!matchSelect) return;
   
@@ -116,7 +117,7 @@ function initializeMatchDropdown() {
   });
 }
 
-// 2. IMAGE PROBING & GRID POPULATION (STRICT REAL FILES ONLY)
+// 2. GRID PROBING & POPULATION
 async function loadMatchPhotos(match) {
   currentMatch = match;
   
@@ -136,7 +137,6 @@ async function loadMatchPhotos(match) {
   if (photoCountBadge) photoCountBadge.textContent = '0 Photos';
   if (syncStatus) syncStatus.textContent = `Loading ${match.title}...`;
 
-  // Fetch manifest once to know exactly which images exist on disk
   if (cachedManifest === null) {
     try {
       const res = await fetch(`${IMAGE_FOLDER}/manifest.json?v=${Date.now()}`);
@@ -146,8 +146,7 @@ async function loadMatchPhotos(match) {
     }
   }
 
-  // Filter ONLY files that physically exist in manifest.json within this match number range
-  let matchingFiles = (cachedManifest || []).filter(filename => {
+  const matchingFiles = (cachedManifest || []).filter(filename => {
     const num = parseInt(filename.replace(/[^0-9]/g, ''), 10);
     return !isNaN(num) && num >= match.startNum && num <= match.endNum;
   });
@@ -158,7 +157,6 @@ async function loadMatchPhotos(match) {
     return;
   }
 
-  // Map into gallery items and sort strictly by photo number
   currentGalleryList = matchingFiles
     .map(filename => {
       const photoNum = parseInt(filename.replace(/[^0-9]/g, ''), 10);
@@ -170,11 +168,9 @@ async function loadMatchPhotos(match) {
 
   gallery.innerHTML = '';
 
-  // Render cards ONLY for files that exist
   currentGalleryList.forEach((item, index) => {
     const isTopRow = index < 6;
     const cardElement = createPhotoCard(item.filename, item.fullUrl, item.thumbUrl, item.photoNum, isTopRow);
-
     loadedImagesMap.set(item.filename, cardElement);
     gallery.appendChild(cardElement);
   });
@@ -186,7 +182,7 @@ async function loadMatchPhotos(match) {
   }
 }
 
-// 3. SEARCH BY SHOT NUMBER
+// 3. SEARCH FILTER
 function filterGallery() {
   const searchTerm = gameTitleInput ? gameTitleInput.value.toLowerCase().trim() : '';
 
@@ -207,7 +203,7 @@ function filterGallery() {
 if (gameTitleInput) gameTitleInput.addEventListener('input', filterGallery);
 if (updateTitleBtn) updateTitleBtn.addEventListener('click', filterGallery);
 
-// 4. CARD CREATION
+// 4. THUMBNAIL CARD GENERATOR
 function createPhotoCard(filename, fullUrl, thumbUrl, photoNum, isTopRow) {
   const card = document.createElement('div');
   card.className = 'photo-card';
@@ -216,7 +212,6 @@ function createPhotoCard(filename, fullUrl, thumbUrl, photoNum, isTopRow) {
 
   const loadingAttr = isTopRow ? 'eager' : 'lazy';
 
-  // Use thumbnail for grid rendering with fullUrl fallback
   card.innerHTML = `
     <img 
       src="${thumbUrl}" 
@@ -235,7 +230,35 @@ function createPhotoCard(filename, fullUrl, thumbUrl, photoNum, isTopRow) {
   return card;
 }
 
-// 5. CAROUSEL POP-UP MODAL CONTROLS (OPTIMIZED ASSET ALLOCATION)
+// 5. CACHED & DECODED CAROUSEL ENGINE
+function initLightboxSlots() {
+  const slotConfigs = [
+    { id: 'card-far-left', offset: -2, isCenter: false },
+    { id: 'card-left',     offset: -1, isCenter: false },
+    { id: 'card-center',   offset:  0, isCenter: true  },
+    { id: 'card-right',    offset:  1, isCenter: false },
+    { id: 'card-far-right',offset:  2, isCenter: false }
+  ];
+
+  lightboxSlots = slotConfigs
+    .map(slot => ({
+      ...slot,
+      img: document.getElementById(slot.id)?.querySelector('img')
+    }))
+    .filter(slot => slot.img !== null);
+}
+
+function preloadImage(url) {
+  if (!url || preloadedCache.has(url)) return;
+  preloadedCache.add(url);
+
+  const img = new Image();
+  img.src = url;
+  if ('decode' in img) {
+    img.decode().catch(() => {});
+  }
+}
+
 function openLightbox(index) {
   activeIndex = index;
   updateLightboxContent();
@@ -253,44 +276,56 @@ function closeLightbox() {
 }
 
 function updateLightboxContent() {
-  if (!filteredGalleryList || filteredGalleryList.length === 0) return;
-
   const total = filteredGalleryList.length;
+  if (total === 0) return;
+
   const getIdx = (offset) => (activeIndex + offset + total) % total;
 
-  // Center gets high-res preview; outer slots receive cached thumbnails to load instantaneously
-  const slots = [
-    { id: 'card-far-left', index: getIdx(-2), isCenter: false },
-    { id: 'card-left',     index: getIdx(-1), isCenter: false },
-    { id: 'card-center',   index: getIdx(0),  isCenter: true  },
-    { id: 'card-right',    index: getIdx(1),  isCenter: false },
-    { id: 'card-far-right',index: getIdx(2),  isCenter: false }
-  ];
+  lightboxSlots.forEach(slot => {
+    const item = filteredGalleryList[getIdx(slot.offset)];
+    if (!item) return;
 
-  slots.forEach(slot => {
-    const el = document.getElementById(slot.id);
-    if (!el) return;
-
-    const img = el.querySelector('img');
-    const item = filteredGalleryList[slot.index];
-    if (!img || !item) return;
-
-    const targetUrl = slot.isCenter ? item.fullUrl : (item.thumbUrl || item.fullUrl);
-
-    // Only update if src actually changed to prevent flashing/re-downloads
-    if (img.getAttribute('src') !== targetUrl) {
-      img.src = targetUrl;
-    }
-
-    img.onerror = function() {
-      if (this.src !== item.fullUrl) {
-        this.src = item.fullUrl;
+    if (slot.isCenter) {
+      // Step 1: Render thumbnail immediately so frame drop is zero
+      const initialSrc = item.thumbUrl || item.fullUrl;
+      if (slot.img.getAttribute('src') !== initialSrc) {
+        slot.img.src = initialSrc;
       }
-    };
+
+      // Step 2: Off-thread decode full-res asset before mounting
+      const fullImg = new Image();
+      fullImg.src = item.fullUrl;
+
+      if ('decode' in fullImg) {
+        fullImg.decode()
+          .then(() => {
+            if (filteredGalleryList[activeIndex]?.fullUrl === item.fullUrl) {
+              slot.img.src = item.fullUrl;
+            }
+          })
+          .catch(() => {
+            slot.img.src = item.fullUrl;
+          });
+      } else {
+        slot.img.src = item.fullUrl;
+      }
+    } else {
+      // Side cards strictly stay on lightweight thumbnails
+      const targetSideUrl = item.thumbUrl || item.fullUrl;
+      if (slot.img.getAttribute('src') !== targetSideUrl) {
+        slot.img.src = targetSideUrl;
+      }
+    }
   });
 
+  // Pre-decode adjacent high-res files into browser cache
+  const nextItem = filteredGalleryList[getIdx(1)];
+  const prevItem = filteredGalleryList[getIdx(-1)];
+  if (nextItem) preloadImage(nextItem.fullUrl);
+  if (prevItem) preloadImage(prevItem.fullUrl);
+
   if (lightboxCaption && filteredGalleryList[activeIndex]) {
-    lightboxCaption.textContent = `${currentMatch.title} — Shot #${filteredGalleryList[activeIndex].photoNum} (${activeIndex + 1} of ${total})`;
+    lightboxCaption.textContent = `Shot #${filteredGalleryList[activeIndex].photoNum} (${activeIndex + 1} of ${total})`;
   }
 }
 
@@ -306,6 +341,7 @@ function showNextPhoto() {
   updateLightboxContent();
 }
 
+// 6. EVENT BINDINGS
 if (lightboxClose) lightboxClose.addEventListener('click', closeLightbox);
 if (lightboxPrev) lightboxPrev.addEventListener('click', (e) => { e.stopPropagation(); showPrevPhoto(); });
 if (lightboxNext) lightboxNext.addEventListener('click', (e) => { e.stopPropagation(); showNextPhoto(); });
@@ -325,6 +361,7 @@ document.addEventListener('keydown', (e) => {
 
 // INITIALIZE
 document.addEventListener('DOMContentLoaded', () => {
+  initLightboxSlots();
   currentMatch = resolveInitialMatch();
   initializeMatchDropdown();
   loadMatchPhotos(currentMatch);

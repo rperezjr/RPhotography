@@ -10,73 +10,61 @@
 
   <!-- SIDEBAR NAVIGATION -->
   <aside class="sidebar">
-    <div class="brand-logo">R</div>
-    <nav>
-      <ul class="nav-links">
-        <li><a href="index.html">Home</a></li>
-        <li><a href="gallery.html" class="active">Gallery</a></li>
-      </ul>
-    </nav>
+    <div class="brand-logo">RP</div>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="gallery.html" class="active">Galleries</a></li>
+    </ul>
   </aside>
 
   <!-- MAIN CONTENT AREA -->
   <main class="main-content">
-    
-    <!-- TOP BAR SEARCH & MATCH SELECTOR -->
-    <div class="top-bar">
+    <header class="top-bar">
       <div class="game-control-panel">
-        <select id="match-select" class="match-dropdown" aria-label="Select Game Match">
-          <!-- Populated dynamically from gallery.js MATCH_DATA -->
-        </select>
+        <select id="match-select" class="match-dropdown" aria-label="Select Match"></select>
         <div class="input-group">
-          <input type="text" id="game-title-input" placeholder="Search photo number..." />
-          <button id="update-title-btn">Search</button>
+          <input type="text" id="game-title-input" placeholder="Search shot number..." />
+          <button type="button" id="update-title-btn">Filter</button>
         </div>
       </div>
+    </header>
+
+    <div class="section-header">
+      <h2 id="display-game-title">Loading Match...</h2>
+      <span class="game-badge" id="photo-count-badge">0 Photos</span>
     </div>
 
-    <!-- STATUS & SECTION HEADER -->
     <div class="status-bar">
-      <span class="status-dot"></span>
-      <span id="sync-status">Scanning for images...</span>
+      <div class="status-dot"></div>
+      <span id="sync-status">Initializing gallery...</span>
     </div>
 
-    <section class="game-section">
-      <div class="section-header">
-        <h2 id="display-game-title">Select a Match</h2>
-        <span class="game-badge" id="photo-count-badge">0 Photos</span>
-      </div>
-
-      <!-- MASONRY GALLERY GRID -->
-      <div class="gallery-grid" id="gallery">
-        <div class="empty-state" id="empty-state">
-          Loading match photos...
-        </div>
-      </div>
-    </section>
+    <div class="gallery-grid" id="gallery">
+      <div class="empty-state" id="empty-state">Loading match photos...</div>
+    </div>
   </main>
 
-  <!-- TRANSPARENT CAROUSEL LIGHTBOX POP-UP -->
-  <div class="lightbox" id="lightbox">
+  <!-- CAROUSEL LIGHTBOX POP-UP -->
+  <div id="lightbox" class="lightbox" role="dialog" aria-modal="true">
+    <button id="lightbox-close" class="lightbox-close" aria-label="Close modal">&times;</button>
+    
     <div class="lightbox-modal">
-      <button class="lightbox-close" id="lightbox-close" aria-label="Close Lightbox">&times;</button>
-      
       <div class="lightbox-header">
-        <span class="lightbox-subtitle">RPHOTOGRAPHY</span>
-        <h3 class="lightbox-title" id="lightbox-caption">Match Photo Preview</h3>
+        <div class="lightbox-subtitle">MONETT SOCCER</div>
+        <div class="lightbox-title" id="lightbox-caption">Loading...</div>
       </div>
 
       <div class="carousel-stage">
-        <div class="carousel-card card-far-left" id="card-far-left"><img src="" alt="" /></div>
-        <div class="carousel-card card-left" id="card-left"><img src="" alt="" /></div>
-        <div class="carousel-card card-center" id="card-center"><img src="" alt="" /></div>
-        <div class="carousel-card card-right" id="card-right"><img src="" alt="" /></div>
-        <div class="carousel-card card-far-right" id="card-far-right"><img src="" alt="" /></div>
+        <div id="card-far-left" class="carousel-card"><img src="" alt="" /></div>
+        <div id="card-left"     class="carousel-card"><img src="" alt="" /></div>
+        <div id="card-center"   class="carousel-card"><img src="" alt="" /></div>
+        <div id="card-right"    class="carousel-card"><img src="" alt="" /></div>
+        <div id="card-far-right" class="carousel-card"><img src="" alt="" /></div>
       </div>
 
       <div class="carousel-controls">
-        <button id="lightbox-prev" aria-label="Previous Photo">&#8592;</button>
-        <button id="lightbox-next" aria-label="Next Photo">&#8594;</button>
+        <button id="lightbox-prev" aria-label="Previous image">&#10094;</button>
+        <button id="lightbox-next" aria-label="Next image">&#10095;</button>
       </div>
     </div>
   </div>
