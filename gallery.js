@@ -61,8 +61,8 @@ const MATCH_DATA = [
   {
     id: 'Monett-vs-Cassville',
     title: 'Monett vs Cassville',
-    startNum: 8295,
-    endNum: 8175
+    startNum: 8175,
+    endNum: 8295
   }
 ];
 
