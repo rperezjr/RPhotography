@@ -57,6 +57,12 @@ const MATCH_DATA = [
     title: 'Monett vs McDonald County',
     startNum: 8105,
     endNum: 8174
+  },
+  {
+    id: 'Monett-vs-Cassville',
+    title: 'Monett vs Cassville',
+    startNum: 8295,
+    endNum: 8175
   }
 ];
 
