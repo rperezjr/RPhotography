@@ -1,4 +1,4 @@
-Here is your complete, updated **`README.md`** file incorporating the Git troubleshooting steps and batch-push instructions for large photo archives.
+Here is your complete, updated **`README.md`** file incorporating the full project documentation, automation workflow, and the new small-batch push guide for the 82–89 photo series.
 
 ```markdown
 # RPhotography 📸⚽
@@ -69,10 +69,22 @@ Add or update the match object in `MATCH_DATA` in both **`home.js`** and **`gall
 const MATCH_DATA = [
   // ... existing games ...
   {
-    id: 'Monett-vs-NewOpponent',
-    title: 'Monett vs New Opponent',
-    startNum: 8105,
-    endNum: 8250
+    id: 'Monett-vs-McDonald-County-2',
+    title: 'Monett vs McDonald County (2nd Match)',
+    startNum: 8297,
+    endNum: 8335
+  },
+  {
+    id: 'Monett-vs-Branson',
+    title: 'Monett vs Branson',
+    startNum: 8336,
+    endNum: 8538
+  },
+  {
+    id: 'Monett-vs-Cassville-2',
+    title: 'Monett vs Cassville (2nd Match)',
+    startNum: 8539,
+    endNum: 8958
   }
 ];
 
@@ -140,10 +152,59 @@ git config pack.packSizeLimit 100m
 ```
 
 
-* **Push in Smaller Batches:** If the upload still stalls, commit and push your photos in smaller groups (e.g., matching specific prefixes like `_WAC88*.JPG` or `_WAC89*.JPG`) rather than all at once:
+
+### 3. Pushing Large Photo Archives in Numeric Batches (82–89 Series)
+
+If pushing all your match thumbnails at once hangs at "Writing objects" (due to large payloads over HTTPS), reset your staged state and push your thumbnails in smaller numeric chunks by their prefix (e.g., matching the 82–89 series):
+
+1. **Reset your local branch to a clean state:**
 ```bash
-git add images/thumbs/_WAC88*.JPG images/manifest.json
-git commit -m "Add batch of match thumbnails starting with 88"
+git reset --mixed origin/main
+
+```
+
+
+2. **Push your manifest, configuration, and documentation first:**
+```bash
+git add images/manifest.json README.md home.js gallery.js
+git commit -m "Update manifest, scripts, and documentation"
+git push origin main
+
+```
+
+
+3. **Push thumbnails in numeric pairs:**
+* **82 & 83 Series:**
+```bash
+git add images/thumbs/_WAC82*.JPG images/thumbs/_WAC83*.JPG
+git commit -m "Add match thumbnails 82 and 83 series"
+git push origin main
+
+```
+
+
+* **84 & 85 Series:**
+```bash
+git add images/thumbs/_WAC84*.JPG images/thumbs/_WAC85*.JPG
+git commit -m "Add match thumbnails 84 and 85 series"
+git push origin main
+
+```
+
+
+* **86 & 87 Series:**
+```bash
+git add images/thumbs/_WAC86*.JPG images/thumbs/_WAC87*.JPG
+git commit -m "Add match thumbnails 86 and 87 series"
+git push origin main
+
+```
+
+
+* **88 & 89 Series:**
+```bash
+git add images/thumbs/_WAC88*.JPG images/thumbs/_WAC89*.JPG
+git commit -m "Add match thumbnails 88 and 89 series"
 git push origin main
 
 ```
