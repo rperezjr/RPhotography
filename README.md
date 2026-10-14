@@ -1,4 +1,4 @@
-Here is the fully corrected and updated **`README.md`**. It replaces the brittle Zsh shell loops with a single, bulletproof Python command that handles thumbnail generation, full-res image compression checks, and manifest indexing all at once without any globbing errors.
+Here is your complete, updated **`README.md`** file incorporating the Git troubleshooting steps and batch-push instructions for large photo archives.
 
 ```markdown
 # RPhotography 📸⚽
@@ -106,10 +106,44 @@ git push origin main
 * **Asset Pipeline:** macOS `sips` CLI + Python automation
 * **Deployment & Hosting:** GitHub Pages
 
+---
+
+## 🔧 Troubleshooting Large Uploads & Git Issues
+
+If you encounter hangs during `git push` when uploading large batches of match photos, or run into index lock errors, follow these steps:
+
+### 1. Fixing Git Index Lock Errors (`index.lock: File exists`)
+
+If a previous Git process was interrupted, remove the stale lock file before running new commands:
+
+```bash
+rm .git/index.lock
+
 ```
 
-<Elicitations message="Would you like to check anything else?">
-  <Elicitation label="Review git status" query="Do you need help checking git status to ensure your files are ready to push?"/>
-</Elicitations>
+### 2. Handling Large Photo Upload Stalls (HTTPS Timeouts)
+
+Pushing hundreds of megabytes of high-resolution JPEGs and thumbnails over HTTPS can cause the transfer to hang at "Writing objects". To fix and prevent this:
+
+* **Increase the Git HTTP Post Buffer:**
+```bash
+git config --global http.postBuffer 524288000
+
+```
+
+
+* **Optimize Pack Window Memory:**
+```bash
+git config pack.windowMemory 100m
+git config pack.packSizeLimit 100m
+
+```
+
+
+* **Push in Smaller Batches:** If the upload still stalls, commit and push your photos in smaller groups (e.g., matching specific prefixes like `_WAC88*.JPG` or `_WAC89*.JPG`) rather than all at once:
+```bash
+git add images/thumbs/_WAC88*.JPG images/manifest.json
+git commit -m "Add batch of match thumbnails starting with 88"
+git push origin main
 
 ```
