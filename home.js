@@ -79,6 +79,12 @@ const MATCH_DATA = [
     title: 'Monett vs Cassville (2nd Match)',
     startNum: 8539,
     endNum: 8958
+  },
+  {
+    id: 'Monett-vs-Rogersville',
+    title: 'Monett vs Rogersville',
+    startNum: 8960,
+    endNum: 9088
   }
 ];
 
