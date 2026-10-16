@@ -196,13 +196,13 @@ async function loadMatchPhotos(match) {
     return;
   }
 
-currentGalleryList = matchingFiles
+  currentGalleryList = matchingFiles
     .map(filename => {
       const photoNum = parseInt(filename.replace(/[^0-9]/g, ''), 10);
       
-      // --- PASTE / UPDATE HERE ---
+      // Pull full-res from Google Drive using the file ID map
       const fileId = DRIVE_FILE_IDS[filename];
-      const fullUrl = fileId ? `https://docs.google.com/uc?export=view&id=${fileId}` : `${IMAGE_FOLDER}/${filename}`;
+      const fullUrl = fileId ? `https://lh3.googleusercontent.com/d/${fileId}` : `${IMAGE_FOLDER}/${filename}`;
       
       const thumbUrl = `${IMAGE_FOLDER}/thumbs/${filename}`;
       return { filename, fullUrl, thumbUrl, photoNum };
