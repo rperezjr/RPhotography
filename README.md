@@ -1,5 +1,3 @@
-Save the updated documentation directly to your repository as **`README.md`** using your terminal:
-
 ```bash
 cat << 'EOF' > README.md
 # RPhotography ⚽📸
@@ -20,9 +18,9 @@ Visit the live site:
 ```text
 RPhotography/
 ├── .github/workflows/ # GitHub Actions static deployment workflow
-├── images/            # Full-size match photos (e.g., _WAC7482.JPG)
+├── images/            # Google Drive mapping & index
 │   ├── thumbs/        # Lightweight compressed grid thumbnails (~30-50KB)
-│   └── manifest.json  # Auto-generated index of existing images
+│   └── manifest.json  # Auto-generated index of all match photos
 ├── .nojekyll          # Disables Jekyll processing for underscore files
 ├── gallery.html       # Gallery page view
 ├── gallery.js         # Match configuration & dynamic gallery loader
@@ -37,45 +35,52 @@ RPhotography/
 
 ## ⚡ Workflow: Adding Pictures for a New Game
 
-Follow these 3 steps whenever you add a new soccer match:
+Follow these steps whenever you add a new soccer match:
 
-### 1. Copy & Process Images (Thumbnails + Compression)
+### 1. Drop, Process, and Move Images
 
-1. Drop your camera files directly into the root `images/` directory.
-2. Open your terminal in the project root and run this single Python automation script:
+1. Drop your new match photos directly into the root `images/` directory.
+2. Run this Python automation script in your terminal to downsample them into lightweight thumbnails, move the originals out of the root folder into `images/thumbs/`, and rebuild a complete `manifest.json` containing **all** past and present images:
 
 ```bash
 python3 -c '
 import os, subprocess, json
-os.makedirs("images/thumbs", exist_ok=True)
-files = sorted([f for f in os.listdir("images") if f.lower().endswith((".jpg", ".jpeg")) and not f.startswith(".")])
-for filename in files:
+thumbs_dir = "images/thumbs"
+os.makedirs(thumbs_dir, exist_ok=True)
+
+# 1. Process any new files sitting in root images/
+root_files = [f for f in os.listdir("images") if f.lower().endswith((".jpg", ".jpeg")) and not f.startswith(".")]
+for filename in root_files:
     src = os.path.join("images", filename)
-    dest = os.path.join("images/thumbs", filename)
+    dest = os.path.join(thumbs_dir, filename)
     if not os.path.exists(dest):
         subprocess.run(["sips", "-Z", "450", "--setProperty", "formatOptions", "65", src, "--out", dest])
-open("images/manifest.json", "w").write(json.dumps(files))
-print(f"Successfully processed {len(files)} photos (thumbnails & manifest updated)!")
+    # Move original to thumbs folder as well (or keep separate if needed)
+    final_dest = os.path.join(thumbs_dir, filename)
+    if os.path.exists(src) and src != final_dest:
+        os.replace(src, final_dest)
+
+# 2. Generate manifest scanning ALL files in thumbs/ to keep everything
+all_files = sorted([f for f in os.listdir(thumbs_dir) if f.lower().endswith((".jpg", ".jpeg")) and not f.startswith(".")])
+open("images/manifest.json", "w").write(json.dumps(all_files, indent=2))
+print(f"Successfully processed and indexed {len(all_files)} total photos!")
 '
 
 ```
 
 ---
 
-### 2. Update Match Manifest in `home.js` & `gallery.js`
+### 2. Update Match Manifest in `gallery.js` & `home.js`
 
-Add or update the match object in `MATCH_DATA` in both **`home.js`** and **`gallery.js`**:
+Add your new match range to `MATCH_DATA`:
 
 ```javascript
-const MATCH_DATA = [
-  // ... existing games ...
-  {
-    id: 'monett-vs-opponent',
-    title: 'Monett vs Opponent',
-    startNum: 8959,
-    endNum: 9150
-  }
-];
+{
+  id: 'monett-vs-opponent',
+  title: 'Monett vs Opponent',
+  startNum: 8959,
+  endNum: 9150
+}
 
 ```
 
@@ -83,11 +88,9 @@ const MATCH_DATA = [
 
 ### 3. Stage, Commit, and Push
 
-Make sure your generated thumbnails and manifest are tracked and pushed to GitHub:
-
 ```bash
 git add images/manifest.json images/thumbs/ images/drive_ids.json README.md gallery.js home.js
-git commit -m "Add new match photos, thumbnails, and updated configuration"
+git commit -m "Add new match photos, thumbnails, and update complete manifest"
 git push origin main
 
 ```
