@@ -1,6 +1,6 @@
 /**
- * RPhotography - Monett Soccer Gallery Engine
- * High-Performance Smooth Carousel Engine
+- RPhotography - Monett Soccer Gallery Engine
+- High-Performance Smooth Carousel Engine
  */
 
 // --- CONFIGURATION ---
@@ -316,13 +316,11 @@ function updateLightboxContent() {
     if (!item) return;
 
     if (slot.isCenter) {
-      // Step 1: Render thumbnail immediately so frame drop is zero
       const initialSrc = item.thumbUrl || item.fullUrl;
       if (slot.img.getAttribute('src') !== initialSrc) {
         slot.img.src = initialSrc;
       }
 
-      // Step 2: Off-thread decode full-res asset before mounting
       const fullImg = new Image();
       fullImg.src = item.fullUrl;
 
@@ -340,7 +338,6 @@ function updateLightboxContent() {
         slot.img.src = item.fullUrl;
       }
     } else {
-      // Side cards strictly stay on lightweight thumbnails
       const targetSideUrl = item.thumbUrl || item.fullUrl;
       if (slot.img.getAttribute('src') !== targetSideUrl) {
         slot.img.src = targetSideUrl;
@@ -348,7 +345,6 @@ function updateLightboxContent() {
     }
   });
 
-  // Pre-decode adjacent high-res files into browser cache
   const nextItem = filteredGalleryList[getIdx(1)];
   const prevItem = filteredGalleryList[getIdx(-1)];
   if (nextItem) preloadImage(nextItem.fullUrl);

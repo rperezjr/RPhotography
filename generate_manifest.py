@@ -1,29 +1,28 @@
+import os
 import json
-from pathlib import Path
 
-thumb_dir = Path("images/thumb")
-output_file = Path("images/images_id.json")
+IMAGE_DIR = 'images'
+OUTPUT_FILE = os.path.join(IMAGE_DIR, 'manifest.json')
 
-if not thumb_dir.exists():
-    print(f"Error: Directory '{thumb_dir}' not found.")
-    exit(1)
+def generate_manifest():
+    if not os.path.exists(IMAGE_DIR):
+        print(f"Error: Directory '{IMAGE_DIR}' does not exist.")
+        return
 
-image_map = {}
-if output_file.exists():
-    with open(output_file, "r") as f:
-        try:
-            image_map = json.load(f)
-        except json.JSONDecodeError:
-            image_map = {}
+    # Find all files starting with _WAC and ending with .JPG (case-insensitive)
+    files = []
+    for filename in os.listdir(IMAGE_DIR):
+        if filename.upper().startswith('_WAC') and filename.upper().endswith(('.JPG', '.JPEG', '.PNG')):
+            files.append(filename)
 
-valid_extensions = {".jpg", ".jpeg", ".png", ".webp"}
-for file_path in thumb_dir.iterdir():
-    if file_path.is_file() and file_path.suffix.lower() in valid_extensions:
-        file_name = file_path.name
-        if file_name not in image_map:
-            image_map[file_name] = "YOUR_GOOGLE_DRIVE_FILE_ID"
+    # Sort files naturally
+    files.sort()
 
-with open(output_file, "w") as f:
-    json.dump(image_map, f, indent=2)
+    # Write out manifest.json inside images/
+    with open(OUTPUT_FILE, 'w') as f:
+        json.dump(files, f, indent=2)
+    
+    print(f"Successfully generated manifest with {len(files)} images at '{OUTPUT_FILE}'.")
 
-print(f"Successfully updated {output_file} with {len(image_map)} images.")
+if __name__ == '__main__':
+    generate_manifest()
