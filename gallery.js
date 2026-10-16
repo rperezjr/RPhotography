@@ -1,12 +1,27 @@
 /**
-- RPhotography - Monett Soccer Gallery Engine
-- High-Performance Smooth Carousel Engine
+ * RPhotography - Monett Soccer Gallery Engine
+ * High-Performance Smooth Carousel Engine
  */
 
 // --- CONFIGURATION ---
 const IMAGE_FOLDER = 'images';
 const FILE_PREFIX = '_WAC';
 const FILE_EXTENSION = 'JPG';
+
+// --- GOOGLE DRIVE FILE ID MAPPING ---
+let DRIVE_FILE_IDS = {};
+
+// Fetch the ID map dynamically alongside manifest
+async function loadDriveMappings() {
+  try {
+    const res = await fetch(`${IMAGE_FOLDER}/drive_ids.json?v=${Date.now()}`);
+    if (res.ok) {
+      DRIVE_FILE_IDS = await res.json();
+    }
+  } catch (e) {
+    console.warn('Could not load drive_ids.json, falling back to local files.');
+  }
+}
 
 // --- MATCHES MANIFEST ---
 const MATCH_DATA = [
@@ -81,12 +96,6 @@ const MATCH_DATA = [
     title: 'Monett vs Cassville (2nd Match)',
     startNum: 8539,
     endNum: 8958
-  },
-  {
-    id: 'Monett-vs-Rogersville',
-    title: 'Monett vs Rogersville',
-    startNum: 8960,
-    endNum: 9088
   }
 ];
 
@@ -187,10 +196,14 @@ async function loadMatchPhotos(match) {
     return;
   }
 
-  currentGalleryList = matchingFiles
+currentGalleryList = matchingFiles
     .map(filename => {
       const photoNum = parseInt(filename.replace(/[^0-9]/g, ''), 10);
-      const fullUrl = `${IMAGE_FOLDER}/${filename}`;
+      
+      // --- PASTE / UPDATE HERE ---
+      const fileId = DRIVE_FILE_IDS[filename];
+      const fullUrl = fileId ? `https://docs.google.com/uc?export=view&id=${fileId}` : `${IMAGE_FOLDER}/${filename}`;
+      
       const thumbUrl = `${IMAGE_FOLDER}/thumbs/${filename}`;
       return { filename, fullUrl, thumbUrl, photoNum };
     })
@@ -386,8 +399,9 @@ document.addEventListener('keydown', (e) => {
 });
 
 // INITIALIZE
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   initLightboxSlots();
+  await loadDriveMappings();
   currentMatch = resolveInitialMatch();
   initializeMatchDropdown();
   loadMatchPhotos(currentMatch);
