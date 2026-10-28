@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RPhotography - Home</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- SIDEBAR NAVIGATION -->
+  <aside class="sidebar">
+    <div class="brand-logo">RP</div>
+    <nav>
+      <ul class="nav-links">
+        <li><a href="index.html" class="active">Home</a></li>
+        <li><a href="gallery.html">Gallery</a></li>
+      </ul>
+    </nav>
+  </aside>
+
+  <!-- MAIN CONTENT AREA -->
+  <main class="main-content">
+    <header class="home-hero">
+      <span class="lightbox-subtitle">MONETT SOCCER ARCHIVE</span>
+      <h1 class="home-title">Matches</h1>
+      <p class="home-desc">Select a match below to open its dedicated photo gallery.</p>
+    </header>
+
+    <section class="matches-overview">
+      <h2 class="section-title">Available Matches</h2>
+      <div class="match-cards-grid" id="home-match-cards">
+        <!-- Generated dynamically with preview thumbnails by home.js -->
+      </div>
+    </section>
+  </main>
+
+  <script src="home.js"></script>
+</body>
+</html>

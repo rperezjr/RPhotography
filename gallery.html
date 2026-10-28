@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RPhotography - Monett Soccer Gallery</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- SIDEBAR NAVIGATION -->
+  <aside class="sidebar">
+    <div class="brand-logo">RP</div>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="gallery.html" class="active">Galleries</a></li>
+    </ul>
+  </aside>
+
+  <!-- MAIN CONTENT AREA -->
+  <main class="main-content">
+    <header class="top-bar">
+      <div class="game-control-panel">
+        <select id="match-select" class="match-dropdown" aria-label="Select Match"></select>
+        <div class="input-group">
+          <input type="text" id="game-title-input" placeholder="Search shot number..." />
+          <button type="button" id="update-title-btn">Filter</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="section-header">
+      <h2 id="display-game-title">Loading Match...</h2>
+      <span class="game-badge" id="photo-count-badge">0 Photos</span>
+    </div>
+
+    <div class="status-bar">
+      <div class="status-dot"></div>
+      <span id="sync-status">Initializing gallery...</span>
+    </div>
+
+    <div class="gallery-grid" id="gallery">
+      <div class="empty-state" id="empty-state">Loading match photos...</div>
+    </div>
+  </main>
+
+  <!-- CAROUSEL LIGHTBOX POP-UP -->
+  <div id="lightbox" class="lightbox" role="dialog" aria-modal="true">
+    <button id="lightbox-close" class="lightbox-close" aria-label="Close modal">&times;</button>
+    
+    <div class="lightbox-modal">
+      <div class="lightbox-header">
+        <div class="lightbox-subtitle">MONETT SOCCER</div>
+        <div class="lightbox-title" id="lightbox-caption">Loading...</div>
+      </div>
+
+      <div class="carousel-stage">
+        <div id="card-far-left" class="carousel-card"><img src="" alt="" /></div>
+        <div id="card-left"     class="carousel-card"><img src="" alt="" /></div>
+        <div id="card-center"   class="carousel-card"><img src="" alt="" /></div>
+        <div id="card-right"    class="carousel-card"><img src="" alt="" /></div>
+        <div id="card-far-right" class="carousel-card"><img src="" alt="" /></div>
+      </div>
+
+      <div class="carousel-controls">
+        <button id="lightbox-prev" aria-label="Previous image">&#10094;</button>
+        <button id="lightbox-next" aria-label="Next image">&#10095;</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="gallery.js"></script>
+</body>
+</html>
