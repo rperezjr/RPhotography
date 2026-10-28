@@ -1,6 +1,6 @@
 /**
  * RPhotography - Monett Soccer Gallery Engine
- * High-Performance Smooth Carousel Engine
+ * High-Performance Smooth Carousel Engine (Google Drive Integrated / No Manifest Required)
  */
 
 // --- CONFIGURATION ---
@@ -11,7 +11,7 @@ const FILE_EXTENSION = 'JPG';
 // --- GOOGLE DRIVE FILE ID MAPPING ---
 let DRIVE_FILE_IDS = {};
 
-// Fetch the ID map dynamically alongside manifest
+// Fetch the ID map dynamically and use its keys as our photo manifest
 async function loadDriveMappings() {
   try {
     const res = await fetch(`${IMAGE_FOLDER}/drive_ids.json?v=${Date.now()}`);
@@ -19,7 +19,7 @@ async function loadDriveMappings() {
       DRIVE_FILE_IDS = await res.json();
     }
   } catch (e) {
-    console.warn('Could not load drive_ids.json, falling back to local files.');
+    console.warn('Could not load drive_ids.json');
   }
 }
 
@@ -104,7 +104,7 @@ const MATCH_DATA = [
     endNum: 9088
   },
   {
-    id: 'Monett-vs-Springfield Central',
+    id: 'Monett-vs-Springfield-Central',
     title: 'Monett vs Springfield Central',
     startNum: 9089,
     endNum: 9140
@@ -139,7 +139,6 @@ let loadedImagesMap = new Map();
 let currentGalleryList = [];
 let filteredGalleryList = [];
 let activeIndex = 0;
-let cachedManifest = null;
 let lightboxSlots = [];
 const preloadedCache = new Set();
 
@@ -174,7 +173,7 @@ function initializeMatchDropdown() {
   });
 }
 
-// 2. GRID PROBING & POPULATION
+// 2. GRID PROBING & POPULATION (Using drive_ids keys directly)
 async function loadMatchPhotos(match) {
   currentMatch = match;
   
@@ -194,16 +193,10 @@ async function loadMatchPhotos(match) {
   if (photoCountBadge) photoCountBadge.textContent = '0 Photos';
   if (syncStatus) syncStatus.textContent = `Loading ${match.title}...`;
 
-  if (cachedManifest === null) {
-    try {
-      const res = await fetch(`${IMAGE_FOLDER}/manifest.json?v=${Date.now()}`);
-      if (res.ok) cachedManifest = await res.json();
-    } catch (e) {
-      cachedManifest = [];
-    }
-  }
+  // Use the keys of DRIVE_FILE_IDS as our complete image index list
+  const allDriveFiles = Object.keys(DRIVE_FILE_IDS);
 
-  const matchingFiles = (cachedManifest || []).filter(filename => {
+  const matchingFiles = allDriveFiles.filter(filename => {
     const num = parseInt(filename.replace(/[^0-9]/g, ''), 10);
     return !isNaN(num) && num >= match.startNum && num <= match.endNum;
   });
@@ -220,9 +213,9 @@ async function loadMatchPhotos(match) {
       
       // Pull full-res from Google Drive using the file ID map
       const fileId = DRIVE_FILE_IDS[filename];
-      const fullUrl = fileId ? `https://lh3.googleusercontent.com/d/${fileId}` : `${IMAGE_FOLDER}/${filename}`;
+      const fullUrl = fileId ? `https://lh3.googleusercontent.com/d/${fileId}` : '';
+      const thumbUrl = fullUrl; // Direct Google Drive links serve as both thumbnail and full view
       
-      const thumbUrl = `${IMAGE_FOLDER}/thumbs/${filename}`;
       return { filename, fullUrl, thumbUrl, photoNum };
     })
     .sort((a, b) => a.photoNum - b.photoNum);
@@ -239,7 +232,7 @@ async function loadMatchPhotos(match) {
   filterGallery();
 
   if (syncStatus) {
-    syncStatus.textContent = `Sync Active (${currentGalleryList.length} Photos Loaded)`;
+    syncStatus.textContent = `Google Drive Sync Active (${currentGalleryList.length} Photos Loaded)`;
   }
 }
 
@@ -279,7 +272,7 @@ function createPhotoCard(filename, fullUrl, thumbUrl, photoNum, isTopRow) {
       loading="${loadingAttr}" 
       decoding="async" 
       alt="${currentMatch.title} Shot ${photoNum}"
-      onerror="if (!this.dataset.fallbackTried) { this.dataset.fallbackTried = 'true'; this.src='${fullUrl}'; } else { this.closest('.photo-card').remove(); }"
+      onerror="this.closest('.photo-card').remove();"
     />
   `;
 

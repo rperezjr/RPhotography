@@ -1,16 +1,9 @@
-Here is your updated `README.md` reflecting a cleaner, more efficient Python workflow that compresses thumbnails further (using `-Z 300` and quality `50`) to keep file sizes tiny and git pushes fast:
+Here is your updated, clean, and simplified **`README.md`** file reflecting your final Google Drive architecture (no manifests, no Python scripts, pure JSON-mapping workflow):
 
 ```markdown
 # RPhotography ⚽📸
 
-A lightweight, high-performance web gallery built to showcase soccer match photography. The site uses vanilla HTML, CSS, and modern asynchronous JavaScript with client-side indexing, lazy loading, and thumbnail caching, hosted directly on GitHub Pages.
-
----
-
-## 🚀 Live Demo
-
-Visit the live site:  
-👉 **[Live Gallery](https://rperezjr.github.io/RPhotography/)**
+A lightweight, high-performance web gallery built to showcase local soccer match photography. The site uses vanilla HTML, CSS, and modern asynchronous JavaScript, hosted on GitHub Pages with image assets offloaded directly to **Google Drive**.
 
 ---
 
@@ -18,93 +11,49 @@ Visit the live site:
 
 ```text
 RPhotography/
-├── .github/workflows/ # GitHub Actions static deployment workflow
-├── images/            # Google Drive mapping & index
-│   ├── thumbs/        # Ultra-lightweight compressed grid thumbnails (~15-30KB)
-│   └── manifest.json  # Auto-generated index of all match photos
-├── .nojekyll          # Disables Jekyll processing for underscore files
-├── gallery.html       # Gallery page view
-├── gallery.js         # Match configuration & dynamic gallery loader
-├── home.js            # Landing page interactions & match cards
-├── index.html         # Main entry page
-├── style.css          # Responsive CSS grid, lightbox, and typography
-└── README.md          # Documentation & workflow guide
-
+├── images/
+│   └── drive_ids.json    # Maps all photo filenames directly to Google Drive file IDs
+├── gallery.html          # Dynamic photo gallery viewer and lightbox
+├── gallery.js            # Match configuration and Google Drive gallery loader
+├── home.js               # Landing page match cards and dynamic cover previews
+├── index.html            # Main entry page
+├── style.css             # Responsive CSS grid, lightbox, and typography
+└── README.md             # Documentation & workflow guide
 
 ```
 
 ---
 
-## ⚡ Workflow: Adding Pictures for a New Game
+## 🚀 Workflow: Adding Photos for a New Match
 
-Follow these steps whenever you add a new soccer match:
+Whenever you shoot and add a new soccer match, follow these 2 simple steps:
 
-### 1. Drop, Process, and Move Images
+### 1. Upload to Google Drive & Update Drive IDs
 
-1. Drop your new match photos directly into the root `images/` directory.
-2. Run this optimized Python automation script in your terminal to downsample them into ultra-lightweight thumbnails (300px max dimension, quality 50), move the originals into `images/thumbs/`, and rebuild a complete `manifest.json`:
+1. Upload your new match photos to Google Drive.
+2. Add the filenames and their corresponding Google Drive file IDs into **`images/drive_ids.json`**. *(The app automatically uses the keys of this file as its image index, filtering out any hidden system files).*
 
-```bash
-python3 -c '
-import os, subprocess, json
-thumbs_dir = "images/thumbs"
-os.makedirs(thumbs_dir, exist_ok=True)
+### 2. Update Match Data (`home.js` & `gallery.js`)
 
-# 1. Process any new files sitting in root images/ with aggressive compression
-root_files = [f for f in os.listdir("images") if f.lower().endswith((".jpg", ".jpeg")) and not f.startswith(".")]
-for filename in root_files:
-    src = os.path.join("images", filename)
-    dest = os.path.join(thumbs_dir, filename)
-    if not os.path.exists(dest):
-        subprocess.run(["sips", "-Z", "300", "--setProperty", "formatOptions", "50", src, "--out", dest])
-    final_dest = os.path.join(thumbs_dir, filename)
-    if os.path.exists(src) and src != final_dest:
-        os.replace(src, final_dest)
-
-# 2. Generate manifest scanning ALL files in thumbs/ to keep everything
-all_files = sorted([f for f in os.listdir(thumbs_dir) if f.lower().endswith((".jpg", ".jpeg")) and not f.startswith(".")])
-open("images/manifest.json", "w").write(json.dumps(all_files, indent=2))
-print(f"Successfully processed and indexed {len(all_files)} total photos!")
-'
-
-```
-
----
-
-### 2. Update Match Manifest in `gallery.js` & `home.js`
-
-Add your new match range to `MATCH_DATA`:
+Open both `home.js` and `gallery.js` and add your new match object to the `MATCH_DATA` array with its correct camera file number range:
 
 ```javascript
 {
   id: 'Monett-vs-Opponent',
   title: 'Monett vs Opponent',
-  startNum: 9089,
-  endNum: 9285
+  startNum: XXXXX,
+  endNum: XXXXX
 }
 
 ```
 
----
+### 3. Sync Changes to GitHub
 
-### 3. Stage, Commit, and Push
-
-If you ever experience large pushes timing out, you can increase your local git post buffer once:
+Open your terminal in the project folder and push your clean code and updated Drive map live:
 
 ```bash
-git config http.postBuffer 524288000
-
-```
-
-Then stage, commit, and push normally:
-
-```bash
-git add images/manifest.json images/thumbs/ images/drive_ids.json README.md gallery.js home.js
-git commit -m "Add new match photos, compressed thumbnails, and update complete manifest"
+git add .
+git commit -m "Add new match photos to Google Drive and update match configuration"
 git push origin main
-
-```
-
-```
 
 ```

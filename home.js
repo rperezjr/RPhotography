@@ -1,6 +1,6 @@
 /**
  * RPhotography - Home Page Controller
- * Displays match cards with dynamic cover previews & manifest-verified photo counts
+ * Displays match cards with dynamic cover previews & photo counts using only drive_ids.json
  */
 
 const IMAGE_FOLDER = 'images';
@@ -87,7 +87,7 @@ const MATCH_DATA = [
     endNum: 9088
   },
   {
-    id: 'Monett-vs-Springfield Central',
+    id: 'Monett-vs-Springfield-Central',
     title: 'Monett vs Springfield Central',
     startNum: 9089,
     endNum: 9140
@@ -100,10 +100,11 @@ const MATCH_DATA = [
   }
 ];
 
-// Helper: Computes exact counts instantly via manifest without downloading files
+// Helper: Computes exact counts instantly from drive_ids keys (ignoring hidden files)
 function probeMatchPhotoCount(match, countBadgeEl, availableImages) {
   if (availableImages && availableImages.length > 0) {
     const matchFiles = availableImages.filter(file => {
+      if (file.startsWith('.')) return false; // Ignore hidden dotfiles
       const num = parseInt(file.replace(/[^0-9]/g, ''), 10);
       return !isNaN(num) && num >= match.startNum && num <= match.endNum;
     });
@@ -119,19 +120,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   container.innerHTML = '';
 
+  let driveIdMap = {};
   let availableImages = [];
+
   try {
-    const res = await fetch(`${IMAGE_FOLDER}/manifest.json?v=${Date.now()}`);
-    if (res.ok) availableImages = await res.json();
+    const res = await fetch(`${IMAGE_FOLDER}/drive_ids.json?v=${Date.now()}`);
+    if (res.ok) {
+      driveIdMap = await res.json();
+      availableImages = Object.keys(driveIdMap);
+    }
   } catch (err) {
-    // Falls back gracefully if manifest is absent
+    console.warn('Could not load Google Drive ID mappings.', err);
   }
 
   MATCH_DATA.forEach(match => {
-    // Find the first REAL existing image for this match to use as cover preview
+    // Find the first clean REAL existing image for this match to use as cover preview
     let coverFileName = `${FILE_PREFIX}${match.startNum}.${FILE_EXTENSION}`;
     if (availableImages.length > 0) {
       const matchFiles = availableImages
+        .filter(name => !name.startsWith('.')) // Ignore hidden dotfiles
         .map(name => ({ name, num: parseInt(name.replace(/[^0-9]/g, ''), 10) }))
         .filter(item => !isNaN(item.num) && item.num >= match.startNum && item.num <= match.endNum)
         .sort((a, b) => a.num - b.num);
@@ -141,8 +148,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
 
-    const thumbUrl = `${IMAGE_FOLDER}/thumbs/${coverFileName}`;
-    const originalUrl = `${IMAGE_FOLDER}/${coverFileName}`;
+    const fileId = driveIdMap[coverFileName];
+    const imageUrl = fileId 
+      ? `https://lh3.googleusercontent.com/d/${fileId}` 
+      : '';
 
     const card = document.createElement('a');
     card.className = 'match-card home-card';
@@ -151,11 +160,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     card.innerHTML = `
       <div class="match-card-thumb">
         <img 
-          src="${thumbUrl}" 
+          src="${imageUrl}" 
           alt="${match.title} Preview" 
           loading="lazy" 
           decoding="async" 
-          onerror="if (!this.dataset.triedOriginal) { this.dataset.triedOriginal = 'true'; this.src='${originalUrl}'; } else { this.parentElement.classList.add('thumb-fallback'); }" 
+          onerror="this.parentElement.classList.add('thumb-fallback');" 
         />
       </div>
       <div class="match-card-body">
