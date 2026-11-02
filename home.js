@@ -3,7 +3,7 @@
  * Automatically renders match cards using folder names from drive_ids.json
  */
 
-const JSON_URL = 'drive_ids.json';
+const JSON_URL = 'images/drive_ids.json';
 
 document.addEventListener('DOMContentLoaded', async () => {
   const container = document.getElementById('home-match-cards');

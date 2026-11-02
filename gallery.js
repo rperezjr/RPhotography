@@ -3,7 +3,7 @@
  * Pulls photos dynamically based on exact folder names from drive_ids.json
  */
 
-const JSON_URL = 'drive_ids.json';
+const JSON_URL = 'images/drive_ids.json';
 
 let MATCH_DATA_MAP = {};
 let MATCH_LIST = [];
