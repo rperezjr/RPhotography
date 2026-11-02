@@ -28,7 +28,29 @@
     </header>
 
     <section class="matches-overview">
-      <h2 class="section-title">Available Matches</h2>
+      <div class="matches-header-row" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 25px;">
+        <h2 class="section-title" style="margin-bottom: 0;">Available Matches</h2>
+        
+        <!-- SEARCH & SORT CONTROLS -->
+        <div class="filter-container" style="display: flex; gap: 15px; flex-wrap: wrap;">
+          <input 
+            type="text" 
+            id="home-search-input" 
+            placeholder="Search matches (e.g., Parkview, Nixa)..." 
+            style="padding: 10px 14px; width: 280px; border-radius: 6px; border: 1px solid #333; background: #1a1a1a; color: #fff; font-size: 14px; outline: none;" 
+          />
+          
+          <select 
+            id="home-sort-select" 
+            style="padding: 10px 14px; border-radius: 6px; border: 1px solid #333; background: #1a1a1a; color: #fff; font-size: 14px; outline: none; cursor: pointer;"
+          >
+            <option value="newest">Sort: Newest First</option>
+            <option value="oldest">Sort: Oldest First</option>
+            <option value="name">Sort: Name (A-Z)</option>
+          </select>
+        </div>
+      </div>
+      
       <div class="match-cards-grid" id="home-match-cards">
         <!-- Generated dynamically with preview thumbnails by home.js -->
       </div>
