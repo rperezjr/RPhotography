@@ -31,13 +31,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   container.innerHTML = '';
 
-  // Sort match titles alphabetically or keep custom ordering
+  // Sort match titles alphabetically
   matchTitles.sort().forEach(title => {
     const fileIdsMap = matchDataMap[title];
     const filenames = Object.keys(fileIdsMap).filter(name => !name.startsWith('.')).sort();
     
     if (filenames.length === 0) return;
 
+    // Use the first image in the folder as the cover preview thumbnail
     const coverFileName = filenames[0];
     const fileId = fileIdsMap[coverFileName];
     const imageUrl = fileId ? `https://lh3.googleusercontent.com/d/${fileId}` : '';

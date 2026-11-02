@@ -158,13 +158,6 @@ function initLightboxSlots() {
   ].filter(slot => slot.img !== null);
 }
 
-function preloadImage(url) {
-  if (!url || preloadedCache.has(url)) return;
-  preloadedCache.add(url);
-  const img = new Image();
-  img.src = url;
-}
-
 function openLightbox(index) {
   activeIndex = index;
   updateLightboxContent();
