@@ -1,9 +1,9 @@
 /**
-- RPhotography - Monett Soccer Gallery Engine
-- Pulls photos dynamically based on exact folder names from drive_ids.json
+ * RPhotography - Monett Soccer Gallery Engine
+ * Pulls photos dynamically based on exact folder names from drive_ids.json
  */
 
-const IMAGE_FOLDER = 'images';
+const JSON_URL = 'drive_ids.json';
 
 let MATCH_DATA_MAP = {};
 let MATCH_LIST = [];
@@ -31,7 +31,7 @@ const lightboxNext = document.getElementById('lightbox-next');
 
 async function loadDriveMappings() {
   try {
-    const res = await fetch(`${IMAGE_FOLDER}/drive_ids.json?v=${Date.now()}`);
+    const res = await fetch(`${JSON_URL}?v=${Date.now()}`);
     if (res.ok) {
       MATCH_DATA_MAP = await res.json();
       

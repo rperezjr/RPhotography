@@ -1,9 +1,9 @@
 /**
-- RPhotography - Home Page Controller
-- Automatically renders match cards using folder names from drive_ids.json
+ * RPhotography - Home Page Controller
+ * Automatically renders match cards using folder names from drive_ids.json
  */
 
-const IMAGE_FOLDER = 'images';
+const JSON_URL = 'drive_ids.json';
 
 document.addEventListener('DOMContentLoaded', async () => {
   const container = document.getElementById('home-match-cards');
@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let matchDataMap = {};
 
   try {
-    const res = await fetch(`${IMAGE_FOLDER}/drive_ids.json?v=${Date.now()}`);
+    const res = await fetch(`${JSON_URL}?v=${Date.now()}`);
     if (res.ok) {
       matchDataMap = await res.json();
     }
